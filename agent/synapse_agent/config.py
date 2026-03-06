@@ -15,15 +15,23 @@ from typing import Any
 import yaml
 
 
+# ── Synapse cloud config (public, safe to embed) ──────────────
+SYNAPSE_SUPABASE_URL = "https://htigtkfuxyzsnotrjcyz.supabase.co"
+SYNAPSE_SUPABASE_ANON_KEY = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aWd0a2Z1eHl6c25vdHJqY3l6"
+    "Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjIwNTYsImV4cCI6MjA4ODI5"
+    "ODA1Nn0.3HeYCtFpu1YmtuhPXWA9pHcVdv_Nh0ex2f5jy_3LVLw"
+)
+
 CONFIG_DIR = Path.home() / ".synapse"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 
 # Defaults
 DEFAULT_CONFIG: dict[str, Any] = {
-    "supabase_url": "",
-    "supabase_anon_key": "",
     "access_token": "",
     "refresh_token": "",
+    "user_email": "",
     "agent_id": "",
     "agent_name": "",
     "work_dir": os.getcwd(),
@@ -86,6 +94,7 @@ def clear_auth() -> None:
     config = load_config()
     config["access_token"] = ""
     config["refresh_token"] = ""
+    config["user_email"] = ""
     config["agent_id"] = ""
     save_config(config)
 
@@ -93,16 +102,9 @@ def clear_auth() -> None:
 def is_authenticated() -> bool:
     """Check if we have stored auth tokens."""
     config = load_config()
-    return bool(config.get("access_token")) and bool(config.get("supabase_url"))
+    return bool(config.get("access_token"))
 
 
 def get_supabase_config() -> tuple[str, str]:
-    """Return (supabase_url, supabase_anon_key) or raise if not configured."""
-    config = load_config()
-    url = config.get("supabase_url", "")
-    key = config.get("supabase_anon_key", "")
-    if not url or not key:
-        raise ValueError(
-            "Supabase not configured. Run 'synapse login' first."
-        )
-    return url, key
+    """Return (supabase_url, supabase_anon_key)."""
+    return SYNAPSE_SUPABASE_URL, SYNAPSE_SUPABASE_ANON_KEY

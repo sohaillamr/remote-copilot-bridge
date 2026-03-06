@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "synapse-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Connect your AI CLI tools to Synapse — access Copilot, Claude, Gemini & more from anywhere"
 readme = "README.md"
 license = "MIT"
@@ -29,6 +29,7 @@ dependencies = [
     "rich>=13.0",
     "pyyaml>=6.0",
     "websockets>=12.0",
+    "requests>=2.20",
 ]
 
 [project.scripts]

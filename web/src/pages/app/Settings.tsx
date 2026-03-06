@@ -1,8 +1,8 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import { User, CreditCard, Shield, LogOut, Check, Loader2 } from 'lucide-react'
+import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
 export default function Settings() {
@@ -10,6 +10,7 @@ export default function Settings() {
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   async function handleSave() {
     if (!user) return
@@ -23,6 +24,12 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  function handleCopy(text: string) {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const statusColors: Record<string, string> = {
     active: 'bg-emerald-500/10 text-emerald-400',
     trial: 'bg-amber-500/10 text-amber-400',
@@ -32,14 +39,14 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 md:p-8 space-y-6">
+    <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 space-y-6">
       <FadeIn>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
       </FadeIn>
 
       {/* Profile */}
       <FadeIn delay={0.1}>
-        <div className="glass-card rounded-xl p-6">
+        <div className="glass-card rounded-xl p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-5">
             <User size={17} className="text-synapse-400" />
             <h2 className="font-semibold text-sm">Profile</h2>
@@ -74,7 +81,7 @@ export default function Settings() {
 
       {/* Subscription */}
       <FadeIn delay={0.2}>
-        <div className="glass-card rounded-xl p-6">
+        <div className="glass-card rounded-xl p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-5">
             <CreditCard size={17} className="text-synapse-400" />
             <h2 className="font-semibold text-sm">Subscription</h2>
@@ -128,27 +135,76 @@ export default function Settings() {
         </div>
       </FadeIn>
 
-      {/* Setup */}
+      {/* Connect Agent */}
       <FadeIn delay={0.3}>
-        <div className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <Shield size={17} className="text-synapse-400" />
-            <h2 className="font-semibold text-sm">Setup Instructions</h2>
+        <div className="glass-card rounded-xl p-5 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Terminal size={17} className="text-synapse-400" />
+            <h2 className="font-semibold text-sm">Connect Your Machine</h2>
           </div>
-          <p className="text-sm text-gray-400 mb-4">Install the Synapse agent on any machine:</p>
-          <div className="terminal">
-            <div className="terminal-header">
-              <div className="terminal-dot bg-red-500/80" />
-              <div className="terminal-dot bg-yellow-500/80" />
-              <div className="terminal-dot bg-green-500/80" />
+          <p className="text-sm text-gray-400 mb-5">
+            Install the agent on any computer, then log in with your email.
+            That's it \u2014 no tokens or keys needed.
+          </p>
+
+          {/* Step 1 */}
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-5 h-5 rounded-full bg-synapse-500/20 text-synapse-400 text-xs flex items-center justify-center font-bold">1</span>
+                <span className="text-sm font-medium">Install the agent</span>
+              </div>
+              <div className="terminal">
+                <div className="terminal-header">
+                  <div className="terminal-dot bg-red-500/80" />
+                  <div className="terminal-dot bg-yellow-500/80" />
+                  <div className="terminal-dot bg-green-500/80" />
+                  <button
+                    onClick={() => handleCopy('pip install synapse-agent')}
+                    className="ml-auto text-gray-500 hover:text-gray-300 transition-colors p-1"
+                    title="Copy"
+                  >
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                </div>
+                <div className="terminal-body">
+                  <p><span className="text-emerald-400">$</span> <span className="text-gray-400">pip install synapse-agent</span></p>
+                </div>
+              </div>
             </div>
-            <div className="terminal-body space-y-1">
-              <p><span className="text-emerald-400">$</span> <span className="text-gray-400">pip install synapse-agent</span></p>
-              <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse login</span></p>
-              <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse start</span></p>
+
+            {/* Step 2 */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-5 h-5 rounded-full bg-synapse-500/20 text-synapse-400 text-xs flex items-center justify-center font-bold">2</span>
+                <span className="text-sm font-medium">Log in with your email</span>
+              </div>
+              <div className="terminal">
+                <div className="terminal-body space-y-1">
+                  <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse login</span></p>
+                  <p className="text-gray-600">  Email: <span className="text-amber-400/70">{user?.email || 'you@example.com'}</span></p>
+                  <p className="text-gray-600">  <span className="text-emerald-400/70">\u2709 Magic link sent! Check your inbox.</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-5 h-5 rounded-full bg-synapse-500/20 text-synapse-400 text-xs flex items-center justify-center font-bold">3</span>
+                <span className="text-sm font-medium">Start the agent</span>
+              </div>
+              <div className="terminal">
+                <div className="terminal-body space-y-1">
+                  <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse start</span></p>
+                  <p className="text-gray-600">  <span className="text-cyan-400/70">\u26a1 Synapse Agent connected</span></p>
+                  <p className="text-gray-600">  <span className="text-gray-500">Detected: copilot, claude, gemini</span></p>
+                </div>
+              </div>
             </div>
           </div>
-          <p className="text-xs text-gray-600 mt-3">The agent auto-detects your installed AI CLI tools.</p>
+
+          <p className="text-xs text-gray-600 mt-4">The agent auto-detects AI CLI tools on your machine (Copilot, Claude, Gemini, Codex, Aider).</p>
         </div>
       </FadeIn>
 

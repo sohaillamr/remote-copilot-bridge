@@ -2,11 +2,11 @@
 CLI entry point for the Synapse Agent.
 
 Commands:
-    synapse login    — Authenticate with Synapse (opens browser)
-    synapse start    — Start listening for prompts
-    synapse status   — Show connection & tool status
-    synapse tools    — List detected AI CLI tools
-    synapse logout   — Clear stored credentials
+    synapse login    - Authenticate with Synapse (email magic link)
+    synapse start    - Start listening for prompts
+    synapse status   - Show connection && tool status
+    synapse tools    - List detected AI CLI tools
+    synapse logout   - Clear stored credentials
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from synapse_agent import __version__
 from synapse_agent.config import (
@@ -27,6 +28,8 @@ from synapse_agent.config import (
     clear_auth,
     is_authenticated,
     ensure_config_dir,
+    SYNAPSE_SUPABASE_URL,
+    SYNAPSE_SUPABASE_ANON_KEY,
 )
 from synapse_agent.tools import discover_all_tools, TOOL_REGISTRY
 
@@ -36,61 +39,108 @@ console = Console()
 @click.group()
 @click.version_option(version=__version__, prog_name="synapse-agent")
 def main():
-    """Synapse Agent — Connect your AI CLI tools to the web."""
+    """Synapse Agent - Connect your AI CLI tools to the web."""
     pass
 
 
-# ─── synapse login ────────────────────────────────────────────────────────
-
+# --- synapse login -------------------------------------------------------
 
 @main.command()
-@click.option("--url", prompt="Supabase URL", help="Your Supabase project URL")
-@click.option("--key", prompt="Supabase Anon Key", help="Your Supabase anon/public key")
-def login(url: str, key: str):
-    """Authenticate with your Synapse account."""
+def login():
+    """Authenticate with your Synapse account (email magic link)."""
+    import requests
+
     ensure_config_dir()
 
+    # Check if already logged in
+    if is_authenticated():
+        config = load_config()
+        console.print(f"[dim]Already logged in as [bold]{config.get('user_email', 'unknown')}[/bold][/dim]")
+        if not click.confirm("Log in again?", default=False):
+            return
+
+    console.print()
+    console.print(Panel.fit(
+        "[bold cyan]Synapse Login[/bold cyan]\n"
+        "[dim]We'll send a magic link to your email.[/dim]",
+        border_style="cyan",
+    ))
+    console.print()
+
+    email = click.prompt("  Email")
+
+    # Send magic link via Supabase Auth REST API
+    from synapse_agent.auth_server import CALLBACK_PORT, wait_for_auth_callback
+
+    redirect_url = f"http://localhost:{CALLBACK_PORT}/callback"
+
+    resp = requests.post(
+        f"{SYNAPSE_SUPABASE_URL}/auth/v1/otp",
+        headers={
+            "apikey": SYNAPSE_SUPABASE_ANON_KEY,
+            "Content-Type": "application/json",
+        },
+        json={
+            "email": email.strip(),
+            "options": {
+                "emailRedirectTo": redirect_url,
+            },
+        },
+        timeout=15,
+    )
+
+    if resp.status_code != 200:
+        console.print(f"[red]  Error sending magic link: {resp.text}[/red]")
+        sys.exit(1)
+
+    console.print()
+    console.print("  [bold green]Mail sent![/bold green] Check your inbox and click the link.")
+    console.print("  [dim](check spam if you don't see it)[/dim]")
+    console.print()
+
+    # Wait for the user to click the link
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True,
+    ) as progress:
+        progress.add_task(description="Waiting for you to click the link...", total=None)
+        tokens = wait_for_auth_callback(timeout=300)
+
+    if not tokens or not tokens.get("access_token"):
+        console.print("[red]  Timed out waiting for login. Please try again.[/red]")
+        sys.exit(1)
+
+    # Save tokens
     config = load_config()
-    config["supabase_url"] = url.strip().rstrip("/")
-    config["supabase_anon_key"] = key.strip()
+    config["access_token"] = tokens["access_token"]
+    config["refresh_token"] = tokens.get("refresh_token", "")
+    config["user_email"] = email.strip()
     save_config(config)
 
-    # Open browser for OAuth login
-    login_url = f"{config['supabase_url']}/auth/v1/authorize?provider=github"
-    console.print(f"\n[bold]Opening browser for authentication...[/bold]")
-    console.print(f"[dim]If it doesn't open, visit: {login_url}[/dim]\n")
-
-    webbrowser.open(login_url)
-
-    # For now, prompt for the token manually
-    # In production, this would use a local HTTP callback server
-    console.print("[yellow]After logging in, paste your access token below.[/yellow]")
-    access_token = click.prompt("Access Token", hide_input=True)
-    refresh_token = click.prompt("Refresh Token (optional)", default="", hide_input=True)
-
-    config["access_token"] = access_token
-    config["refresh_token"] = refresh_token
-    save_config(config)
-
-    console.print("\n[bold green]✅ Logged in successfully![/bold green]")
-    console.print("[dim]Run 'synapse start' to connect your tools.[/dim]")
+    console.print(f"  [bold green]Logged in as [white]{email.strip()}[/white]![/bold green]")
+    console.print("  [dim]Run [bold]synapse start[/bold] to connect your tools.[/dim]")
+    console.print()
 
 
-# ─── synapse start ────────────────────────────────────────────────────────
-
+# --- synapse start --------------------------------------------------------
 
 @main.command()
 @click.option("--work-dir", "-d", default=None, help="Working directory for tool execution")
 def start(work_dir: str | None):
     """Start the agent and listen for prompts from the web portal."""
     if not is_authenticated():
-        console.print("[red]❌ Not authenticated. Run 'synapse login' first.[/red]")
+        console.print("[red]  Not authenticated. Run [bold]synapse login[/bold] first.[/red]")
         sys.exit(1)
 
+    config = load_config()
+
     # Show banner
+    console.print()
     console.print(Panel.fit(
-        "[bold cyan]⚡ Synapse Agent[/bold cyan]\n"
-        f"[dim]v{__version__}[/dim]",
+        "[bold cyan]Synapse Agent[/bold cyan]\n"
+        f"[dim]v{__version__} | {config.get('user_email', '')}[/dim]",
         border_style="cyan",
     ))
 
@@ -109,8 +159,10 @@ def start(work_dir: str | None):
             table.add_row(t.name, t.binary_path)
         console.print(table)
     else:
-        console.print("[yellow]⚠️  No AI CLI tools detected.[/yellow]")
-        console.print("[dim]Install one: npm install -g @github/copilot[/dim]")
+        console.print("[yellow]  No AI CLI tools detected.[/yellow]")
+        console.print("[dim]  Install one: npm install -g @github/copilot[/dim]")
+
+    console.print()
 
     # Start the relay
     from synapse_agent.relay import SynapseRelay
@@ -125,23 +177,25 @@ def start(work_dir: str | None):
         console.print("\n[yellow]Stopped.[/yellow]")
 
 
-# ─── synapse status ───────────────────────────────────────────────────────
-
+# --- synapse status -------------------------------------------------------
 
 @main.command()
 def status():
     """Show agent connection status and detected tools."""
     config = load_config()
 
-    auth_status = "[green]✅ Authenticated[/green]" if is_authenticated() else "[red]❌ Not authenticated[/red]"
-    supabase_url = config.get("supabase_url", "Not configured")
+    auth_status = (
+        f"[green]Logged in as [bold]{config.get('user_email', 'unknown')}[/bold][/green]"
+        if is_authenticated()
+        else "[red]Not authenticated[/red]"
+    )
     agent_id = config.get("agent_id", "Not registered")
     work_dir = config.get("work_dir", "Not set")
 
+    console.print()
     console.print(Panel.fit(
         f"[bold]Synapse Agent Status[/bold]\n\n"
         f"Auth:      {auth_status}\n"
-        f"Supabase:  [dim]{supabase_url}[/dim]\n"
         f"Agent ID:  [dim]{agent_id}[/dim]\n"
         f"Work Dir:  [dim]{work_dir}[/dim]",
         border_style="blue",
@@ -159,9 +213,10 @@ def status():
     else:
         console.print("[yellow]No AI CLI tools detected.[/yellow]")
 
+    console.print()
 
-# ─── synapse tools ────────────────────────────────────────────────────────
 
+# --- synapse tools --------------------------------------------------------
 
 @main.command()
 def tools():
@@ -177,11 +232,11 @@ def tools():
     for name, meta in TOOL_REGISTRY.items():
         binary = find_tool_binary(name)
         if binary:
-            status = "[green]✅ Found[/green]"
+            status = "[green]Found[/green]"
             path = binary
         else:
-            status = "[red]❌ Not found[/red]"
-            path = "—"
+            status = "[red]Not found[/red]"
+            path = "-"
         table.add_row(
             meta["display_name"],
             status,
@@ -192,14 +247,13 @@ def tools():
     console.print(table)
 
 
-# ─── synapse logout ───────────────────────────────────────────────────────
-
+# --- synapse logout -------------------------------------------------------
 
 @main.command()
 def logout():
     """Clear stored credentials."""
     clear_auth()
-    console.print("[green]✅ Logged out. Credentials cleared.[/green]")
+    console.print("[green]  Logged out. Credentials cleared.[/green]")
 
 
 if __name__ == "__main__":
