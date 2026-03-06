@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useAgentRelay } from '../../hooks/useAgentRelay'
 import { useVoiceInput } from '../../hooks/useVoiceInput'
 import { supabase } from '../../lib/supabase'
-import { Send, StopCircle, ChevronDown, Terminal, MessageSquare, Mic, MicOff, GitBranch } from 'lucide-react'
+import { Send, StopCircle, ChevronDown, Terminal, MessageSquare, Mic, MicOff, GitBranch, Zap } from 'lucide-react'
 
 interface ChatMessage {
   id: string
@@ -381,27 +381,21 @@ export default function Chat() {
                 <div className="relative w-8 h-8 flex items-center justify-center">
                   <motion.div
                     className="absolute inset-0 rounded-xl bg-synapse-500/20"
-                    animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                   />
                   <motion.div
-                    className="absolute inset-0 rounded-xl bg-synapse-500/10"
-                    animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+                    className="absolute inset-0 rounded-xl bg-synapse-400/10"
+                    animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
                   />
-                  <motion.svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    className="w-5 h-5 text-synapse-400 relative z-10"
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                  <motion.div
+                    className="relative z-10"
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                   >
-                    <path
-                      d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
-                      fill="currentColor"
-                      opacity="0.9"
-                    />
-                  </motion.svg>
+                    <Zap size={18} className="text-synapse-400 fill-synapse-400/30" />
+                  </motion.div>
                 </div>
                 {/* Animated dots */}
                 <div className="flex items-center gap-1">

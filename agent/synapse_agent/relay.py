@@ -270,14 +270,25 @@ class SynapseRelay:
         data = payload.get("payload", {})
         path = data.get("path", self.bridge.work_dir)
 
-        # Resolve relative paths
-        if not os.path.isabs(path):
+        # Resolve '.' and relative paths to the agent's working directory
+        if path == '.' or not path:
+            path = self.bridge.work_dir
+        elif not os.path.isabs(path):
             path = os.path.normpath(os.path.join(self.bridge.work_dir, path))
 
-        result = self.bridge.list_files(path)
+        console.print(f"[dim]Files: listing {path}[/dim]")
+
+        try:
+            result = self.bridge.list_files(path)
+        except Exception as e:
+            console.print(f"[red]Files error: {e}[/red]")
+            result = {"error": str(e), "items": []}
 
         if self._channel:
-            await self._channel.send_broadcast("files_result", result)
+            try:
+                await self._channel.send_broadcast("files_result", result)
+            except Exception as e:
+                console.print(f"[red]Broadcast files_result error: {e}[/red]")
 
     async def _handle_read(self, payload: dict) -> None:
         """Handle file read request."""
@@ -286,10 +297,19 @@ class SynapseRelay:
         start = data.get("start_line", 1)
         end = data.get("end_line", None)
 
-        result = self.bridge.read_file(file_path, start, end)
+        console.print(f"[dim]Read: {file_path}[/dim]")
+
+        try:
+            result = self.bridge.read_file(file_path, start, end)
+        except Exception as e:
+            console.print(f"[red]Read error: {e}[/red]")
+            result = {"error": str(e)}
 
         if self._channel:
-            await self._channel.send_broadcast("read_result", result)
+            try:
+                await self._channel.send_broadcast("read_result", result)
+            except Exception as e:
+                console.print(f"[red]Broadcast read_result error: {e}[/red]")
 
     async def _handle_shell(self, payload: dict) -> None:
         """Handle shell command execution."""
