@@ -82,7 +82,7 @@ class SynapseRelay:
         channel_name = f"agent:{self._user_id}"
         self._channel = self._supabase.realtime.channel(
             channel_name,
-            config={"broadcast": {"self": False}, "private": True},
+            params={"broadcast": {"self": False}, "private": True},
         )
 
         # Register event handlers
