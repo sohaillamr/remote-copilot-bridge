@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
-import { useAgentRelay } from '../../hooks/useAgentRelay'
+import { useRelay } from '../../contexts/AgentRelayContext'
 import { useVoiceInput } from '../../hooks/useVoiceInput'
 import { supabase } from '../../lib/supabase'
-import { Send, StopCircle, ChevronDown, Terminal, MessageSquare, Mic, MicOff, GitBranch, Zap } from 'lucide-react'
+import MarkdownMessage from '../../components/MarkdownMessage'
+import {
+  Send, StopCircle, ChevronDown, Terminal, Mic, MicOff,
+  GitBranch, Zap, Copy, Check, Plus, Clock, PanelLeftClose, PanelLeftOpen,
+} from 'lucide-react'
 
 interface ChatMessage {
   id: string
@@ -15,29 +19,56 @@ interface ChatMessage {
   timestamp: Date
 }
 
+interface ConversationMeta {
+  id: string
+  title: string
+  tool: string | null
+  created_at: string
+}
+
 export default function Chat() {
   const { id: conversationId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const {
     isConnected,
+    agentReachable,
     outputLines,
     lastResult,
     isWaiting,
     sendPrompt,
     sendCancel,
     sendGit,
-  } = useAgentRelay()
+    detectedTools,
+    clearOutput,
+  } = useRelay()
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [selectedTool, setSelectedTool] = useState('copilot')
-  const [tools] = useState(['copilot', 'claude', 'gemini', 'codex', 'aider'])
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [showGitPanel, setShowGitPanel] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
+
+  // Conversation sidebar
+  const [conversations, setConversations] = useState<ConversationMeta[]>([])
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
-  const _inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Build tools list: dynamic from agent + fallback
+  const toolsList = detectedTools.length > 0
+    ? detectedTools.map(t => t.name)
+    : ['copilot', 'claude', 'gemini', 'codex', 'aider']
+
+  // If selectedTool isn't in the list, reset to first
+  useEffect(() => {
+    if (toolsList.length > 0 && !toolsList.includes(selectedTool)) {
+      setSelectedTool(toolsList[0])
+    }
+  }, [toolsList, selectedTool])
 
   const {
     isSupported: voiceSupported,
@@ -52,10 +83,7 @@ export default function Chat() {
     onResult: (text) => {
       setInput(prev => {
         const trimmed = prev.trim()
-        if (trimmed) {
-          return trimmed + ' ' + text
-        }
-        return text
+        return trimmed ? trimmed + ' ' + text : text
       })
     },
     onError: (err) => {
@@ -66,14 +94,28 @@ export default function Chat() {
 
   const streamingText = outputLines.map(l => l.line).join('\n')
 
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingText])
 
+  // Load history when conversationId changes
   useEffect(() => {
-    if (conversationId) loadHistory(conversationId)
-  }, [conversationId])
+    if (conversationId) {
+      loadHistory(conversationId)
+      clearOutput()
+    } else {
+      setMessages([])
+      clearOutput()
+    }
+  }, [conversationId, clearOutput])
 
+  // Load conversations list
+  useEffect(() => {
+    if (user) loadConversations()
+  }, [user])
+
+  // Streaming → messages
   useEffect(() => {
     if (lastResult) {
       setMessages(prev => {
@@ -110,7 +152,7 @@ export default function Chat() {
     }
   }, [streamingText, isWaiting])
 
-  // Sync interim voice transcript to input field live
+  // Sync interim voice transcript
   useEffect(() => {
     if (isListening && transcript) {
       setInput(transcript)
@@ -135,6 +177,28 @@ export default function Chat() {
       )
     }
   }
+
+  async function loadConversations() {
+    const { data } = await supabase
+      .from('conversations')
+      .select('id, title, tool, created_at')
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setConversations((data as ConversationMeta[]) || [])
+  }
+
+  const handleCopyMessage = useCallback((content: string, msgId: string) => {
+    navigator.clipboard.writeText(content)
+    setCopiedMsgId(msgId)
+    setTimeout(() => setCopiedMsgId(null), 2000)
+  }, [])
+
+  const handleNewChat = useCallback(() => {
+    navigate('/app/chat')
+    setMessages([])
+    clearOutput()
+  }, [navigate, clearOutput])
 
   const handleSend = useCallback(async () => {
     if (isListening) {
@@ -163,6 +227,10 @@ export default function Chat() {
           .select()
           .single()
         convId = data?.id
+        if (convId) {
+          navigate(`/app/chat/${convId}`, { replace: true })
+          loadConversations()
+        }
       }
       if (convId) {
         await supabase.from('messages').insert({
@@ -173,7 +241,7 @@ export default function Chat() {
       }
     }
     sendPrompt(selectedTool, prompt, convId || crypto.randomUUID())
-  }, [input, isConnected, isWaiting, user, conversationId, selectedTool, sendPrompt, isListening, stopListening, clearTranscript])
+  }, [input, isConnected, isWaiting, user, conversationId, selectedTool, sendPrompt, isListening, stopListening, clearTranscript, navigate])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -197,346 +265,423 @@ export default function Chat() {
   }, [isConnected, isWaiting, sendGit])
 
   const handleCommit = useCallback(async () => {
-    const msg = commitMsg.trim()
+    const msg = commitMsg.trim().replace(/["`$\\]/g, '') // sanitize
     if (!msg || !isConnected || isWaiting) return
     setCommitMsg('')
     setShowGitPanel(false)
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `git commit -m "${msg}"`,
+      content: `git add -A && git commit -m "${msg}"`,
       tool: 'git',
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, userMsg])
-    sendGit(`add -A && git commit -m "${msg}"`, crypto.randomUUID())
+    // Send as two safe args instead of shell-injected string
+    sendGit('add -A', crypto.randomUUID())
+    setTimeout(() => {
+      sendGit(`commit -m "${msg}"`, crypto.randomUUID())
+    }, 500)
   }, [commitMsg, isConnected, isWaiting, sendGit])
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <motion.div
-        initial={{ y: -10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-between px-3 sm:px-5 py-3 border-b border-white/[0.06]"
-      >
-        <div className="flex items-center gap-2 sm:gap-3">
-          <MessageSquare size={17} className="text-synapse-400 hidden sm:block" />
-          <h1 className="font-semibold text-sm">Chat</h1>
-          <div className={`flex items-center gap-1.5 text-[11px] px-2 sm:px-2.5 py-1 rounded-full ${
-            isConnected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-            {isConnected ? 'Online' : 'Offline'}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowGitPanel(v => !v)}
-            disabled={!isConnected}
-            className={`flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30 ${
-              showGitPanel ? 'bg-orange-500/15 text-orange-400' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'
-            }`}
-            title="Git operations"
-          >
-            <GitBranch size={13} />
-            <span className="hidden sm:inline">Git</span>
-          </motion.button>
-          <div className="relative">
-            <select
-              value={selectedTool}
-              onChange={(e) => setSelectedTool(e.target.value)}
-              className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3"
-            >
-              {tools.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Git Quick Actions Panel */}
+    <div className="flex h-full">
+      {/* ─── Conversation Sidebar ─── */}
       <AnimatePresence>
-        {showGitPanel && (
+        {sidebarOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 260, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden border-b border-white/[0.06]"
+            className="border-r border-white/[0.06] bg-[#0c0c0f]/60 backdrop-blur-sm flex flex-col overflow-hidden shrink-0"
           >
-            <div className="px-3 sm:px-5 py-3 space-y-2.5">
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { label: 'Status', cmd: 'status' },
-                  { label: 'Log', cmd: 'log --oneline -10' },
-                  { label: 'Diff', cmd: 'diff --stat' },
-                  { label: 'Pull', cmd: 'pull' },
-                  { label: 'Push', cmd: 'push' },
-                  { label: 'Branch', cmd: 'branch -a' },
-                  { label: 'Stash', cmd: 'stash' },
-                  { label: 'Stash Pop', cmd: 'stash pop' },
-                ].map(({ label, cmd }) => (
-                  <motion.button
-                    key={cmd}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => runGit(cmd)}
-                    disabled={isWaiting}
-                    className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.06] transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-mono"
+            <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-400 tracking-wide uppercase">History</span>
+              <button onClick={handleNewChat} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors" title="New chat">
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+              {conversations.length === 0 ? (
+                <p className="text-xs text-gray-600 text-center py-6">No conversations yet</p>
+              ) : (
+                conversations.map(conv => (
+                  <button
+                    key={conv.id}
+                    onClick={() => navigate(`/app/chat/${conv.id}`)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
+                      conv.id === conversationId
+                        ? 'bg-synapse-600/15 text-synapse-300'
+                        : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+                    }`}
                   >
-                    {label}
-                  </motion.button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={commitMsg}
-                  onChange={(e) => setCommitMsg(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleCommit() }}
-                  placeholder="Commit message..."
-                  className="input flex-1 text-xs py-1.5"
-                  disabled={isWaiting}
-                />
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleCommit}
-                  disabled={!commitMsg.trim() || isWaiting}
-                  className="text-[11px] px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-medium"
-                >
-                  Commit All
-                </motion.button>
-              </div>
+                    <span className="block truncate">{conv.title || 'Untitled'}</span>
+                    <span className="flex items-center gap-1 text-[10px] text-gray-700 mt-0.5">
+                      <Clock size={9} />
+                      {new Date(conv.created_at).toLocaleDateString()}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3">
-        {messages.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center py-16 sm:py-24"
-          >
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto mb-4 sm:mb-5">
-              <Terminal className="text-synapse-400" size={22} />
-            </div>
-            <p className="text-sm sm:text-base text-gray-400">Send a prompt to <span className="text-white font-medium">{selectedTool}</span></p>
-            <p className="text-xs text-gray-600 mt-2">Make sure your agent is running on your machine</p>
-            {voiceSupported && (
-              <p className="text-xs text-gray-600 mt-1 flex items-center justify-center gap-1">
-                <Mic size={11} /> Voice input available — tap the mic to speak
-              </p>
-            )}
-          </motion.div>
-        )}
-
-        <AnimatePresence>
-          {messages.map(msg => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+      {/* ─── Main Chat ─── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <motion.div
+          initial={{ y: -10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="flex items-center justify-between px-3 sm:px-5 py-3 border-b border-white/[0.06]"
+        >
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setSidebarOpen(v => !v)}
+              className="p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
+              title="Toggle history"
             >
-              <div className={`max-w-[85vw] sm:max-w-2xl rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
-                msg.role === 'user'
-                  ? 'bg-synapse-600/20 border border-synapse-500/10'
-                  : 'glass-card'
-              }`}>
-                {msg.tool && (
-                  <p className="text-[10px] text-gray-600 mb-1 font-mono">{msg.tool}</p>
-                )}
-                <pre className="whitespace-pre-wrap font-mono text-xs sm:text-sm break-words text-gray-300 leading-relaxed">
-                  {msg.content}
-                </pre>
-                {msg.id === 'streaming' && (
-                  <span className="inline-block w-1.5 h-4 bg-synapse-400 animate-pulse rounded-sm ml-0.5" />
-                )}
+              {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+            </button>
+            <h1 className="font-semibold text-sm hidden sm:block">Chat</h1>
+            <div className={`flex items-center gap-1.5 text-[11px] px-2 sm:px-2.5 py-1 rounded-full ${
+              agentReachable
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : isConnected
+                  ? 'bg-amber-500/10 text-amber-400'
+                  : 'bg-red-500/10 text-red-400'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                agentReachable ? 'bg-emerald-400 animate-pulse' : isConnected ? 'bg-amber-400' : 'bg-red-400'
+              }`} />
+              {agentReachable ? 'Agent Online' : isConnected ? 'Channel Only' : 'Offline'}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowGitPanel(v => !v)}
+              disabled={!isConnected}
+              className={`flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30 ${
+                showGitPanel ? 'bg-orange-500/15 text-orange-400' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'
+              }`}
+              title="Git operations"
+            >
+              <GitBranch size={13} />
+              <span className="hidden sm:inline">Git</span>
+            </motion.button>
+            {/* Tool selector */}
+            <div className="relative">
+              <select
+                value={selectedTool}
+                onChange={(e) => setSelectedTool(e.target.value)}
+                className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3"
+              >
+                {toolsList.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Git Quick Actions Panel */}
+        <AnimatePresence>
+          {showGitPanel && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden border-b border-white/[0.06]"
+            >
+              <div className="px-3 sm:px-5 py-3 space-y-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Status', cmd: 'status' },
+                    { label: 'Log', cmd: 'log --oneline -10' },
+                    { label: 'Diff', cmd: 'diff --stat' },
+                    { label: 'Pull', cmd: 'pull' },
+                    { label: 'Push', cmd: 'push' },
+                    { label: 'Branch', cmd: 'branch -a' },
+                    { label: 'Stash', cmd: 'stash' },
+                    { label: 'Stash Pop', cmd: 'stash pop' },
+                  ].map(({ label, cmd }) => (
+                    <motion.button
+                      key={cmd}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => runGit(cmd)}
+                      disabled={isWaiting}
+                      className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.06] transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-mono"
+                    >
+                      {label}
+                    </motion.button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={commitMsg}
+                    onChange={(e) => setCommitMsg(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCommit() }}
+                    placeholder="Commit message..."
+                    className="input flex-1 text-xs py-1.5"
+                    disabled={isWaiting}
+                  />
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleCommit}
+                    disabled={!commitMsg.trim() || isWaiting}
+                    className="text-[11px] px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                  >
+                    Commit All
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
-          ))}
+          )}
         </AnimatePresence>
 
-        {/* Thinking animation — visible when waiting but no streaming output yet */}
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3">
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-center py-16 sm:py-24"
+            >
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto mb-4 sm:mb-5">
+                <Terminal className="text-synapse-400" size={22} />
+              </div>
+              <p className="text-sm sm:text-base text-gray-400">Send a prompt to <span className="text-white font-medium">{selectedTool}</span></p>
+              <p className="text-xs text-gray-600 mt-2">Make sure your agent is running on your machine</p>
+              {detectedTools.length > 0 && (
+                <p className="text-xs text-gray-600 mt-1">
+                  Detected: {detectedTools.map(t => t.name).join(', ')}
+                </p>
+              )}
+              {voiceSupported && (
+                <p className="text-xs text-gray-600 mt-1 flex items-center justify-center gap-1">
+                  <Mic size={11} /> Voice input available — tap the mic to speak
+                </p>
+              )}
+            </motion.div>
+          )}
+
+          <AnimatePresence>
+            {messages.map(msg => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`relative group max-w-[85vw] sm:max-w-2xl rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-synapse-600/20 border border-synapse-500/10'
+                    : 'glass-card'
+                }`}>
+                  {msg.tool && (
+                    <p className="text-[10px] text-gray-600 mb-1 font-mono">{msg.tool}</p>
+                  )}
+
+                  {/* Render markdown for assistant, plain for user */}
+                  {msg.role === 'assistant' ? (
+                    <MarkdownMessage content={msg.content} />
+                  ) : (
+                    <pre className="whitespace-pre-wrap font-mono text-xs sm:text-sm break-words text-gray-300 leading-relaxed">
+                      {msg.content}
+                    </pre>
+                  )}
+
+                  {msg.id === 'streaming' && (
+                    <span className="inline-block w-1.5 h-4 bg-synapse-400 animate-pulse rounded-sm ml-0.5" />
+                  )}
+
+                  {/* Copy button on assistant messages */}
+                  {msg.role === 'assistant' && msg.id !== 'streaming' && (
+                    <button
+                      onClick={() => handleCopyMessage(msg.content, msg.id)}
+                      className="absolute top-2 right-2 p-1 rounded-md bg-white/[0.04] text-gray-600 hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Copy response"
+                    >
+                      {copiedMsgId === msg.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {/* Thinking animation */}
+          <AnimatePresence>
+            {isWaiting && !streamingText && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="flex justify-start"
+              >
+                <div className="glass-card rounded-2xl px-5 py-4 flex items-center gap-3">
+                  <div className="relative w-8 h-8 flex items-center justify-center">
+                    <motion.div
+                      className="absolute inset-0 rounded-xl bg-synapse-500/20"
+                      animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <motion.div
+                      className="absolute inset-0 rounded-xl bg-synapse-400/10"
+                      animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+                    />
+                    <motion.div
+                      className="relative z-10"
+                      animate={{ scale: [1, 1.15, 1] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <Zap size={18} className="text-synapse-400 fill-synapse-400/30" />
+                    </motion.div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-500">Thinking</span>
+                    {[0, 1, 2].map(i => (
+                      <motion.span
+                        key={i}
+                        className="w-1 h-1 rounded-full bg-synapse-400"
+                        animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Voice error toast */}
         <AnimatePresence>
-          {isWaiting && !streamingText && (
+          {voiceError && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="flex justify-start"
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/20 text-red-300 text-xs backdrop-blur-sm max-w-[90vw] text-center"
             >
-              <div className="glass-card rounded-2xl px-5 py-4 flex items-center gap-3">
-                {/* Synapse logo pulse */}
-                <div className="relative w-8 h-8 flex items-center justify-center">
-                  <motion.div
-                    className="absolute inset-0 rounded-xl bg-synapse-500/20"
-                    animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 rounded-xl bg-synapse-400/10"
-                    animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-                  />
-                  <motion.div
-                    className="relative z-10"
-                    animate={{ scale: [1, 1.15, 1] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                  >
-                    <Zap size={18} className="text-synapse-400 fill-synapse-400/30" />
-                  </motion.div>
-                </div>
-                {/* Animated dots */}
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500">Thinking</span>
-                  {[0, 1, 2].map(i => (
-                    <motion.span
-                      key={i}
-                      className="w-1 h-1 rounded-full bg-synapse-400"
-                      animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
-                      transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
-                    />
-                  ))}
-                </div>
-              </div>
+              {voiceError}
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Voice error toast */}
-      <AnimatePresence>
-        {voiceError && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/20 text-red-300 text-xs backdrop-blur-sm max-w-[90vw] text-center"
-          >
-            {voiceError}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Input */}
-      <motion.div
-        initial={{ y: 10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="border-t border-white/[0.06] p-3 sm:p-4"
-      >
-        {/* Listening indicator */}
-        <AnimatePresence>
-          {isListening && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex items-center justify-center gap-2 pb-2 sm:pb-3 max-w-4xl mx-auto"
-            >
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
-                <div className="flex items-center gap-0.5 h-4">
-                  {[0, 1, 2, 3, 4].map(i => (
-                    <motion.div
-                      key={i}
-                      className="w-0.5 bg-red-400 rounded-full"
-                      animate={{
-                        height: ['4px', '16px', '4px'],
-                      }}
-                      transition={{
-                        duration: 0.6,
-                        repeat: Infinity,
-                        delay: i * 0.1,
-                        ease: 'easeInOut',
-                      }}
-                    />
-                  ))}
+        {/* Input */}
+        <motion.div
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="border-t border-white/[0.06] p-3 sm:p-4"
+        >
+          {/* Listening indicator */}
+          <AnimatePresence>
+            {isListening && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center justify-center gap-2 pb-2 sm:pb-3 max-w-4xl mx-auto"
+              >
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
+                  <div className="flex items-center gap-0.5 h-4">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <motion.div
+                        key={i}
+                        className="w-0.5 bg-red-400 rounded-full"
+                        animate={{ height: ['4px', '16px', '4px'] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1, ease: 'easeInOut' }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-red-300 font-medium">Listening...</span>
+                  <span className="text-[10px] text-red-400/60 hidden sm:inline">Tap mic or press Enter to send</span>
                 </div>
-                <span className="text-xs text-red-300 font-medium">Listening...</span>
-                <span className="text-[10px] text-red-400/60 hidden sm:inline">Tap mic or press Enter to send</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <div className="flex items-end gap-1.5 sm:gap-2 max-w-4xl mx-auto">
-          <textarea
-            ref={_inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              isListening
-                ? 'Listening\u2026 speak now'
-                : isConnected
-                  ? `Ask ${selectedTool}...`
-                  : 'Agent is offline'
-            }
-            disabled={!isConnected}
-            rows={1}
-            className={`input flex-1 resize-none min-h-[42px] max-h-40 transition-all text-base sm:text-sm ${
-              isListening ? 'border-red-500/30 ring-1 ring-red-500/20' : ''
-            }`}
-          />
-
-          {voiceSupported && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={toggleListening}
-              disabled={!isConnected || isWaiting}
-              title={isListening ? 'Stop recording' : 'Voice input'}
-              className={`relative p-2.5 sm:p-2.5 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed min-w-[42px] min-h-[42px] flex items-center justify-center ${
+          <div className="flex items-end gap-1.5 sm:gap-2 max-w-4xl mx-auto">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
                 isListening
-                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                  : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white'
+                  ? 'Listening\u2026 speak now'
+                  : isConnected
+                    ? `Ask ${selectedTool}...`
+                    : 'Agent is offline'
+              }
+              disabled={!isConnected}
+              rows={1}
+              className={`input flex-1 resize-none min-h-[42px] max-h-40 transition-all text-base sm:text-sm ${
+                isListening ? 'border-red-500/30 ring-1 ring-red-500/20' : ''
               }`}
-            >
-              {isListening && (
-                <motion.span
-                  className="absolute inset-0 rounded-xl border-2 border-red-400/40"
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                />
-              )}
-              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-            </motion.button>
-          )}
+            />
 
-          {isWaiting ? (
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={sendCancel}
-              className="p-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors min-w-[42px] min-h-[42px] flex items-center justify-center"
-              title="Cancel"
-            >
-              <StopCircle size={18} />
-            </motion.button>
-          ) : (
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSend}
-              disabled={!input.trim() || !isConnected}
-              className="p-2.5 rounded-xl bg-synapse-600 hover:bg-synapse-700 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-w-[42px] min-h-[42px] flex items-center justify-center"
-            >
-              <Send size={18} />
-            </motion.button>
-          )}
-        </div>
-      </motion.div>
+            {voiceSupported && (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.05 }}
+                onClick={toggleListening}
+                disabled={!isConnected || isWaiting}
+                title={isListening ? 'Stop recording' : 'Voice input'}
+                className={`relative p-2.5 sm:p-2.5 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed min-w-[42px] min-h-[42px] flex items-center justify-center ${
+                  isListening
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                {isListening && (
+                  <motion.span
+                    className="absolute inset-0 rounded-xl border-2 border-red-400/40"
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
+                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+              </motion.button>
+            )}
+
+            {isWaiting ? (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={sendCancel}
+                className="p-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors min-w-[42px] min-h-[42px] flex items-center justify-center"
+                title="Cancel"
+              >
+                <StopCircle size={18} />
+              </motion.button>
+            ) : (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSend}
+                disabled={!input.trim() || !isConnected}
+                className="p-2.5 rounded-xl bg-synapse-600 hover:bg-synapse-700 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-w-[42px] min-h-[42px] flex items-center justify-center"
+              >
+                <Send size={18} />
+              </motion.button>
+            )}
+          </div>
+        </motion.div>
+      </div>
     </div>
   )
 }

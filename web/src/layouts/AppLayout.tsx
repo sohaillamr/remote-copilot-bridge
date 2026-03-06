@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
+import { AgentRelayProvider } from '../contexts/AgentRelayContext'
+import ToastContainer from '../components/ToastContainer'
 import { MessageSquare, FolderOpen, Settings, LayoutDashboard, LogOut, Shield, Zap, Menu, X } from 'lucide-react'
 
 export default function AppLayout() {
@@ -91,63 +93,67 @@ export default function AppLayout() {
   )
 
   return (
-    <div className="flex h-screen bg-[#09090b]">
-      {/* Desktop Sidebar */}
-      <motion.aside
-        initial={{ x: -20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.35 }}
-        className="hidden md:flex w-64 border-r border-white/[0.06] flex-col bg-[#0c0c0f]/80 backdrop-blur-xl"
-      >
-        <SidebarContent />
-      </motion.aside>
-
-      {/* Mobile overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeSidebar}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-            />
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 bottom-0 w-72 border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
-            >
-              <SidebarContent />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Main content */}
-      <main className="flex-1 overflow-auto flex flex-col">
-        {/* Mobile top bar */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-white/[0.06] text-gray-400 transition-colors">
-            <Menu size={20} />
-          </button>
-          <div className="flex items-center gap-2">
-            <Zap className="text-synapse-400" size={16} />
-            <span className="text-sm font-bold">Synapse</span>
-          </div>
-          <div className="w-9" />
-        </div>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="h-full flex-1"
+    <AgentRelayProvider>
+      <div className="flex h-screen bg-[#09090b]">
+        {/* Desktop Sidebar */}
+        <motion.aside
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.35 }}
+          className="hidden md:flex w-64 border-r border-white/[0.06] flex-col bg-[#0c0c0f]/80 backdrop-blur-xl"
         >
-          <Outlet />
-        </motion.div>
-      </main>
-    </div>
+          <SidebarContent />
+        </motion.aside>
+
+        {/* Mobile overlay */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={closeSidebar}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+              />
+              <motion.aside
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed top-0 left-0 bottom-0 w-72 border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
+              >
+                <SidebarContent />
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Main content */}
+        <main className="flex-1 overflow-auto flex flex-col">
+          {/* Mobile top bar */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30">
+            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-white/[0.06] text-gray-400 transition-colors">
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2">
+              <Zap className="text-synapse-400" size={16} />
+              <span className="text-sm font-bold">Synapse</span>
+            </div>
+            <div className="w-9" />
+          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="h-full flex-1"
+          >
+            <Outlet />
+          </motion.div>
+        </main>
+
+        <ToastContainer />
+      </div>
+    </AgentRelayProvider>
   )
 }

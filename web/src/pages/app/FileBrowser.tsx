@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAgentRelay } from '../../hooks/useAgentRelay'
+import { useRelay } from '../../contexts/AgentRelayContext'
 import {
   Folder, File, ArrowLeft, RefreshCw, Home, ChevronRight,
   FileText, AlertCircle, FolderOpen, Zap, Check,
@@ -14,7 +14,7 @@ interface FileEntry {
 }
 
 export default function FileBrowser() {
-  const { isConnected, sendListFiles, sendReadFile, sendSetWorkdir } = useAgentRelay()
+  const { isConnected, sendListFiles, sendReadFile, sendSetWorkdir } = useRelay()
   const navigate = useNavigate()
 
   const [currentPath, setCurrentPath] = useState('.')

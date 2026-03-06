@@ -119,15 +119,24 @@ export default function Settings() {
                 </a>
               ) : (
                 <div className="space-y-2">
-                  <a
-                    href="https://synapse.lemonsqueezy.com/checkout/buy/your-product-id"
+                  <button
+                    onClick={() => {
+                      // Paymob integration — will be configured later
+                      alert('Paymob payment integration coming soon. Contact support for manual activation.')
+                    }}
                     className="btn-primary w-full text-center block text-sm py-2.5"
                   >
                     Subscribe &mdash; $5/month
-                  </a>
-                  <p className="text-[11px] text-gray-600 text-center">
-                    Egypt? <a href="#" className="text-synapse-400 hover:text-synapse-300 transition-colors">Pay with Paymob (250 EGP)</a>
-                  </p>
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Paymob EGP flow — will be configured later
+                      alert('Paymob EGP payment integration coming soon. Contact support for manual activation.')
+                    }}
+                    className="w-full text-center text-[11px] text-gray-600 hover:text-synapse-400 transition-colors py-1"
+                  >
+                    Egypt? Pay with Paymob (250 EGP)
+                  </button>
                 </div>
               )}
             </div>

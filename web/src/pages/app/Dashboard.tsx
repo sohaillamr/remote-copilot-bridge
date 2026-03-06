@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
-import { supabase, Agent } from '../../lib/supabase'
-import { MessageSquare, Wifi, WifiOff, Terminal, Clock, ArrowRight, Zap } from 'lucide-react'
+import { useRelay } from '../../contexts/AgentRelayContext'
+import { supabase, type Agent } from '../../lib/supabase'
+import { MessageSquare, Wifi, WifiOff, Terminal, Clock, ArrowRight, Zap, Check } from 'lucide-react'
 import { FadeIn, StaggerContainer, StaggerItem } from '../../components/Animations'
 
 export default function Dashboard() {
   const { profile } = useAuth()
+  const { selectedAgent, selectAgent, detectedTools, agentReachable } = useRelay()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -93,6 +95,28 @@ export default function Dashboard() {
         ))}
       </StaggerContainer>
 
+      {/* Agent status + detected tools */}
+      {agentReachable && detectedTools.length > 0 && (
+        <FadeIn delay={0.2}>
+          <div className="glass-card rounded-xl p-4 sm:p-5 border-emerald-500/10">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative">
+                <Wifi className="text-emerald-400" size={16} />
+                <div className="absolute inset-0 bg-emerald-400/20 blur-md rounded-full" />
+              </div>
+              <span className="text-sm font-medium text-emerald-300">Agent Online</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {detectedTools.map(t => (
+                <span key={t.name} className="text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.04] text-gray-400 border border-white/[0.06] font-mono">
+                  {t.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </FadeIn>
+      )}
+
       {/* Agent List */}
       <FadeIn delay={0.3}>
         <div>
@@ -118,50 +142,64 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {agents.map((agent, i) => (
-                <motion.div
-                  key={agent.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="glass-card rounded-xl p-3 sm:p-4"
-                >
-                  <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-                    {isOnline(agent) ? (
-                      <div className="relative mt-1 sm:mt-0 shrink-0">
-                        <Wifi className="text-emerald-400" size={18} />
-                        <div className="absolute inset-0 bg-emerald-400/20 blur-md rounded-full" />
+              {agents.map((agent, i) => {
+                const online = isOnline(agent)
+                const isSelected = selectedAgent?.id === agent.id
+                return (
+                  <motion.button
+                    key={agent.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    onClick={() => selectAgent(isSelected ? null : agent)}
+                    className={`w-full glass-card rounded-xl p-3 sm:p-4 text-left transition-all ${
+                      isSelected
+                        ? 'ring-1 ring-synapse-500/30 border-synapse-500/20'
+                        : 'hover:bg-white/[0.02]'
+                    }`}
+                  >
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+                      {online ? (
+                        <div className="relative mt-1 sm:mt-0 shrink-0">
+                          <Wifi className="text-emerald-400" size={18} />
+                          <div className="absolute inset-0 bg-emerald-400/20 blur-md rounded-full" />
+                        </div>
+                      ) : (
+                        <WifiOff className="text-gray-700 mt-1 sm:mt-0 shrink-0" size={18} />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm flex flex-wrap items-center gap-2">
+                          <span className="truncate">{agent.hostname || 'Unknown Machine'}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            online ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-gray-600'
+                          }`}>
+                            {online ? 'Online' : 'Offline'}
+                          </span>
+                          {isSelected && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-synapse-500/15 text-synapse-400 flex items-center gap-1">
+                              <Check size={9} /> Selected
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-600 truncate mt-0.5">
+                          Tools: {agent.tools?.join(', ') || 'none'}
+                          {agent.work_dir && ` \u00B7 ${agent.work_dir}`}
+                        </p>
+                        {agent.last_seen_at && (
+                          <p className="text-[10px] text-gray-700 font-mono mt-1 sm:hidden">
+                            {new Date(agent.last_seen_at).toLocaleString()}
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <WifiOff className="text-gray-700 mt-1 sm:mt-0 shrink-0" size={18} />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm flex flex-wrap items-center gap-2">
-                        <span className="truncate">{agent.hostname || 'Unknown Machine'}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          isOnline(agent) ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-gray-600'
-                        }`}>
-                          {isOnline(agent) ? 'Online' : 'Offline'}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-600 truncate mt-0.5">
-                        Tools: {agent.tools?.join(', ') || 'none'}
-                        {agent.work_dir && ` \u00B7 ${agent.work_dir}`}
-                      </p>
                       {agent.last_seen_at && (
-                        <p className="text-[10px] text-gray-700 font-mono mt-1 sm:hidden">
+                        <p className="text-[10px] text-gray-700 font-mono whitespace-nowrap hidden sm:block shrink-0">
                           {new Date(agent.last_seen_at).toLocaleString()}
                         </p>
                       )}
                     </div>
-                    {agent.last_seen_at && (
-                      <p className="text-[10px] text-gray-700 font-mono whitespace-nowrap hidden sm:block shrink-0">
-                        {new Date(agent.last_seen_at).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.button>
+                )
+              })}
             </div>
           )}
         </div>
