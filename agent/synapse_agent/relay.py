@@ -70,12 +70,24 @@ class SynapseRelay:
         self._running = False
         self._supabase = None
 
+    def _persist_tokens(self, event: str, session) -> None:
+        """Save refreshed tokens to disk so they survive restarts."""
+        if session and hasattr(session, "access_token") and session.access_token:
+            updated = {
+                **self.config,
+                "access_token": session.access_token,
+                "refresh_token": session.refresh_token or "",
+            }
+            save_config(updated)
+            self.config = updated
+
     async def connect(self) -> None:
         """Establish connection to Supabase Realtime."""
         from supabase import acreate_client
 
         url, anon_key = get_supabase_config()
         access_token = self.config.get("access_token", "")
+        refresh_token = self.config.get("refresh_token", "")
 
         if not access_token:
             console.print("[red]Not authenticated. Run 'synapse login' first.[/red]")
@@ -83,16 +95,29 @@ class SynapseRelay:
 
         # Create Supabase client with user's JWT
         self._supabase = await acreate_client(url, anon_key)
-        await self._supabase.auth.set_session(
-            access_token=access_token,
-            refresh_token=self.config.get("refresh_token", ""),
-        )
+
+        # Listen for token refreshes so we always persist the latest tokens
+        self._supabase.auth.on_auth_state_change(self._persist_tokens)
+
+        try:
+            # set_session auto-refreshes if the access_token is expired
+            auth_response = await self._supabase.auth.set_session(
+                access_token=access_token,
+                refresh_token=refresh_token,
+            )
+        except Exception as exc:
+            console.print(f"[red]Authentication failed: {exc}[/red]")
+            console.print("[yellow]Run 'synapse login' to re-authenticate.[/yellow]")
+            return
 
         # Get user ID from session
         session = await self._supabase.auth.get_session()
         if not session or not session.user:
             console.print("[red]Session expired. Run 'synapse login' again.[/red]")
             return
+
+        # Persist the (possibly refreshed) tokens immediately
+        self._persist_tokens("SIGNED_IN", session)
 
         self._user_id = session.user.id
         console.print(f"[green]Authenticated as {session.user.email}[/green]")
@@ -336,6 +361,7 @@ class SynapseRelay:
 
     async def _heartbeat_loop(self, interval: int = 30) -> None:
         """Send periodic heartbeat to keep agent status fresh."""
+        refresh_counter = 0
         while self._running:
             try:
                 if self._supabase and self._agent_id:
@@ -343,6 +369,17 @@ class SynapseRelay:
                         "is_online": True,
                         "last_seen_at": "now()",
                     }).eq("id", self._agent_id).execute()
+
+                # Proactively refresh auth tokens every ~50 minutes
+                # (Supabase tokens expire after 60 min)
+                refresh_counter += 1
+                if refresh_counter >= (50 * 60 // interval):
+                    refresh_counter = 0
+                    if self._supabase:
+                        try:
+                            await self._supabase.auth.refresh_session()
+                        except Exception:
+                            pass  # Token listener will persist on success
             except Exception:
                 pass  # Silently retry on next heartbeat
             await asyncio.sleep(interval)
