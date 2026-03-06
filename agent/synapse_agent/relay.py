@@ -1,22 +1,27 @@
 """
-Supabase Realtime integration — connects the agent to the Synapse cloud.
+Supabase Realtime integration -- connects the agent to the Synapse cloud.
 
 Handles:
 - Authentication with Supabase via stored JWT
 - Subscribing to the user's private Broadcast channel
 - Routing incoming events (prompt, cancel, files, read, shell, ping)
 - Streaming responses back via Broadcast
+
+NOTE: The realtime library v2.28 calls broadcast callbacks *synchronously*
+      from _handle_message, so we must wrap async handlers with
+      asyncio.create_task() to schedule them on the event loop.
 """
 
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import os
 import platform
 import time
 import uuid
-from typing import Any
+from typing import Any, Callable, Coroutine
 
 from rich.console import Console
 
@@ -28,12 +33,29 @@ from synapse_agent.tools import discover_all_tools
 console = Console()
 
 
+def _sync_wrapper(async_fn: Callable[..., Coroutine]) -> Callable:
+    """
+    Wraps an async handler so it can be used as a sync broadcast callback.
+
+    The realtime library calls broadcast callbacks synchronously. This wrapper
+    schedules the async handler on the running event loop via create_task().
+    """
+    @functools.wraps(async_fn)
+    def wrapper(payload: dict) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(async_fn(payload))
+        except RuntimeError:
+            pass  # No event loop running, skip
+    return wrapper
+
+
 class SynapseRelay:
     """
     Connects to Supabase Realtime and relays prompts to local CLI tools.
 
     Architecture:
-    - Agent subscribes to Broadcast channel "agent:{user_id}"
+    - Agent subscribes to Broadcast channel "agent:{user_uuid}"
     - Web portal sends events: prompt, cancel, files, read, shell, ping
     - Agent executes locally and streams responses back on the same channel
     """
@@ -56,7 +78,7 @@ class SynapseRelay:
         access_token = self.config.get("access_token", "")
 
         if not access_token:
-            console.print("[red]❌ Not authenticated. Run 'synapse login' first.[/red]")
+            console.print("[red]Not authenticated. Run 'synapse login' first.[/red]")
             return
 
         # Create Supabase client with user's JWT
@@ -69,11 +91,11 @@ class SynapseRelay:
         # Get user ID from session
         session = await self._supabase.auth.get_session()
         if not session or not session.user:
-            console.print("[red]❌ Session expired. Run 'synapse login' again.[/red]")
+            console.print("[red]Session expired. Run 'synapse login' again.[/red]")
             return
 
         self._user_id = session.user.id
-        console.print(f"[green]✅ Authenticated as {session.user.email}[/green]")
+        console.print(f"[green]Authenticated as {session.user.email}[/green]")
 
         # Register/update agent in database
         await self._register_agent()
@@ -85,17 +107,17 @@ class SynapseRelay:
             params={"broadcast": {"self": False}, "private": True},
         )
 
-        # Register event handlers
-        self._channel.on_broadcast("prompt", self._handle_prompt)
-        self._channel.on_broadcast("cancel", self._handle_cancel)
-        self._channel.on_broadcast("files", self._handle_files)
-        self._channel.on_broadcast("read", self._handle_read)
-        self._channel.on_broadcast("shell", self._handle_shell)
-        self._channel.on_broadcast("ping", self._handle_ping)
-        self._channel.on_broadcast("set_workdir", self._handle_set_workdir)
+        # Register event handlers (wrapped as sync callbacks)
+        self._channel.on_broadcast("prompt", _sync_wrapper(self._handle_prompt))
+        self._channel.on_broadcast("cancel", _sync_wrapper(self._handle_cancel))
+        self._channel.on_broadcast("files", _sync_wrapper(self._handle_files))
+        self._channel.on_broadcast("read", _sync_wrapper(self._handle_read))
+        self._channel.on_broadcast("shell", _sync_wrapper(self._handle_shell))
+        self._channel.on_broadcast("ping", _sync_wrapper(self._handle_ping))
+        self._channel.on_broadcast("set_workdir", _sync_wrapper(self._handle_set_workdir))
 
         await self._channel.subscribe()
-        console.print(f"[green]✅ Listening on channel: {channel_name}[/green]")
+        console.print(f"[green]Listening on channel: {channel_name}[/green]")
 
     async def _register_agent(self) -> None:
         """Register or update this agent in the database."""
@@ -103,9 +125,9 @@ class SynapseRelay:
         tool_names = [t.name for t in tools]
 
         if tools:
-            console.print(f"[cyan]🔧 Detected tools: {', '.join(tool_names)}[/cyan]")
+            console.print(f"[cyan]Detected tools: {', '.join(tool_names)}[/cyan]")
         else:
-            console.print("[yellow]⚠️  No AI CLI tools detected. Install one first.[/yellow]")
+            console.print("[yellow]No AI CLI tools detected. Install one first.[/yellow]")
 
         agent_data = {
             "user_id": self._user_id,
@@ -131,11 +153,9 @@ class SynapseRelay:
                 self._agent_id = result.data[0]["id"]
                 save_config({**self.config, "agent_id": self._agent_id})
 
-        console.print(f"[green]✅ Agent registered: {agent_data['name']}[/green]")
+        console.print(f"[green]Agent registered: {agent_data['name']}[/green]")
 
-    # ──────────────────────────────────────────────────────────────────
-    # Event Handlers
-    # ──────────────────────────────────────────────────────────────────
+    # ---- Event Handlers ----
 
     async def _handle_prompt(self, payload: dict) -> None:
         """Handle incoming prompt from web portal."""
@@ -148,7 +168,7 @@ class SynapseRelay:
         if not prompt:
             return
 
-        console.print(f"\n[bold cyan]📨 Prompt ({tool}):[/bold cyan] {prompt[:100]}...")
+        console.print(f"\n[bold cyan]Prompt ({tool}):[/bold cyan] {prompt[:100]}...")
 
         async def on_line(line: str) -> None:
             """Stream each output line back via Broadcast."""
@@ -179,14 +199,14 @@ class SynapseRelay:
                 },
             )
 
-        icon = "✅" if result.success else "⚠️"
+        icon = "OK" if result.success else "WARN"
         console.print(f"[bold]{icon} Done ({result.duration:.1f}s)[/bold]")
 
     async def _handle_cancel(self, payload: dict) -> None:
         """Handle cancel event."""
         cancelled = await self.bridge.cancel()
         status = "cancelled" if cancelled else "nothing_running"
-        console.print(f"[yellow]🛑 Cancel: {status}[/yellow]")
+        console.print(f"[yellow]Cancel: {status}[/yellow]")
 
         if self._channel:
             await self._channel.send_broadcast(
@@ -229,7 +249,7 @@ class SynapseRelay:
         if not command:
             return
 
-        console.print(f"[bold yellow]⚡ Shell:[/bold yellow] {command}")
+        console.print(f"[bold yellow]Shell:[/bold yellow] {command}")
 
         async def on_line(line: str) -> None:
             if self._channel:
@@ -304,11 +324,9 @@ class SynapseRelay:
                 {"old": old_dir, "new": self.bridge.work_dir},
             )
 
-        console.print(f"[green]📂 {old_dir} → {self.bridge.work_dir}[/green]")
+        console.print(f"[green]Workdir: {old_dir} -> {self.bridge.work_dir}[/green]")
 
-    # ──────────────────────────────────────────────────────────────────
-    # Heartbeat
-    # ──────────────────────────────────────────────────────────────────
+    # ---- Heartbeat ----
 
     async def _heartbeat_loop(self, interval: int = 30) -> None:
         """Send periodic heartbeat to keep agent status fresh."""
@@ -323,9 +341,7 @@ class SynapseRelay:
                 pass  # Silently retry on next heartbeat
             await asyncio.sleep(interval)
 
-    # ──────────────────────────────────────────────────────────────────
-    # Main run loop
-    # ──────────────────────────────────────────────────────────────────
+    # ---- Main run loop ----
 
     async def run(self) -> None:
         """Connect and listen forever. Main entry point for `synapse start`."""
@@ -333,7 +349,7 @@ class SynapseRelay:
 
         await self.connect()
 
-        console.print("\n[bold green]🚀 Synapse Agent is running[/bold green]")
+        console.print("\n[bold green]Synapse Agent is running[/bold green]")
         console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
         heartbeat = asyncio.create_task(self._heartbeat_loop())
@@ -350,7 +366,7 @@ class SynapseRelay:
             await self._disconnect()
 
     async def _disconnect(self) -> None:
-        """Clean shutdown — mark agent offline, unsubscribe."""
+        """Clean shutdown -- mark agent offline, unsubscribe."""
         console.print("\n[yellow]Shutting down...[/yellow]")
 
         # Mark agent as offline
@@ -369,4 +385,4 @@ class SynapseRelay:
             except Exception:
                 pass
 
-        console.print("[green]✅ Agent stopped[/green]")
+        console.print("[green]Agent stopped[/green]")
