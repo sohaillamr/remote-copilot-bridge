@@ -44,10 +44,21 @@ def _sync_wrapper(async_fn: Callable[..., Coroutine]) -> Callable:
     def wrapper(payload: dict) -> None:
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(async_fn(payload))
+            task = loop.create_task(async_fn(payload))
+            # Log unhandled exceptions so they don't vanish silently
+            task.add_done_callback(_task_done_callback)
         except RuntimeError:
             pass  # No event loop running, skip
     return wrapper
+
+
+def _task_done_callback(task: asyncio.Task) -> None:
+    """Log any unhandled exception from a fire-and-forget task."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc:
+        console.print(f"[red]Handler error: {exc}[/red]")
 
 
 class SynapseRelay:
@@ -125,7 +136,11 @@ class SynapseRelay:
         # Register/update agent in database
         await self._register_agent()
 
-        # Subscribe to the user's private Broadcast channel
+        # Subscribe to the user's Broadcast channel
+        # NOTE: Using public channel (no private: True) because private channels
+        # require RLS policies on realtime.messages which would silently drop
+        # messages between clients. The channel name contains the user UUID
+        # so it is not guessable.
         channel_name = f"agent:{self._user_id}"
         self._channel = self._supabase.realtime.channel(
             channel_name,
@@ -133,7 +148,6 @@ class SynapseRelay:
                 "config": {
                     "broadcast": {"ack": False, "self": False},
                     "presence": {"key": "", "enabled": False},
-                    "private": True,
                 }
             },
         )
@@ -204,14 +218,17 @@ class SynapseRelay:
         async def on_line(line: str) -> None:
             """Stream each output line back via Broadcast."""
             if self._channel:
-                await self._channel.send_broadcast(
-                    "output",
-                    {
-                        "conversation_id": conversation_id,
-                        "line": line,
-                        "timestamp": time.time(),
-                    },
-                )
+                try:
+                    await self._channel.send_broadcast(
+                        "output",
+                        {
+                            "conversation_id": conversation_id,
+                            "line": line,
+                            "timestamp": time.time(),
+                        },
+                    )
+                except Exception as e:
+                    console.print(f"[red]Broadcast output error: {e}[/red]")
 
         result = await self.bridge.run_prompt(
             tool_name=tool,
@@ -222,13 +239,17 @@ class SynapseRelay:
 
         # Send final result event
         if self._channel:
-            await self._channel.send_broadcast(
-                "result",
-                {
-                    "conversation_id": conversation_id,
-                    **result.to_dict(),
-                },
-            )
+            try:
+                await self._channel.send_broadcast(
+                    "result",
+                    {
+                        "conversation_id": conversation_id,
+                        **result.to_dict(),
+                    },
+                )
+                console.print(f"[green]Result sent to web portal[/green]")
+            except Exception as e:
+                console.print(f"[red]Broadcast result error: {e}[/red]")
 
         icon = "OK" if result.success else "WARN"
         console.print(f"[bold]{icon} Done ({result.duration:.1f}s)[/bold]")

@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useAgentRelay } from '../../hooks/useAgentRelay'
 import { useVoiceInput } from '../../hooks/useVoiceInput'
 import { supabase } from '../../lib/supabase'
-import { Send, StopCircle, ChevronDown, Terminal, MessageSquare, Mic, MicOff } from 'lucide-react'
+import { Send, StopCircle, ChevronDown, Terminal, MessageSquare, Mic, MicOff, GitBranch } from 'lucide-react'
 
 interface ChatMessage {
   id: string
@@ -25,6 +25,7 @@ export default function Chat() {
     isWaiting,
     sendPrompt,
     sendCancel,
+    sendGit,
   } = useAgentRelay()
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -32,6 +33,8 @@ export default function Chat() {
   const [selectedTool, setSelectedTool] = useState('copilot')
   const [tools] = useState(['copilot', 'claude', 'gemini', 'codex', 'aider'])
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [showGitPanel, setShowGitPanel] = useState(false)
+  const [commitMsg, setCommitMsg] = useState('')
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const _inputRef = useRef<HTMLTextAreaElement>(null)
@@ -179,6 +182,36 @@ export default function Chat() {
     }
   }
 
+  const runGit = useCallback(async (args: string) => {
+    if (!isConnected || isWaiting) return
+    const label = `git ${args}`
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: label,
+      tool: 'git',
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, userMsg])
+    sendGit(args, crypto.randomUUID())
+  }, [isConnected, isWaiting, sendGit])
+
+  const handleCommit = useCallback(async () => {
+    const msg = commitMsg.trim()
+    if (!msg || !isConnected || isWaiting) return
+    setCommitMsg('')
+    setShowGitPanel(false)
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: `git commit -m "${msg}"`,
+      tool: 'git',
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, userMsg])
+    sendGit(`add -A && git commit -m "${msg}"`, crypto.randomUUID())
+  }, [commitMsg, isConnected, isWaiting, sendGit])
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -197,19 +230,90 @@ export default function Chat() {
             {isConnected ? 'Online' : 'Offline'}
           </div>
         </div>
-        <div className="relative">
-          <select
-            value={selectedTool}
-            onChange={(e) => setSelectedTool(e.target.value)}
-            className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3"
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowGitPanel(v => !v)}
+            disabled={!isConnected}
+            className={`flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30 ${
+              showGitPanel ? 'bg-orange-500/15 text-orange-400' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'
+            }`}
+            title="Git operations"
           >
-            {tools.map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+            <GitBranch size={13} />
+            <span className="hidden sm:inline">Git</span>
+          </motion.button>
+          <div className="relative">
+            <select
+              value={selectedTool}
+              onChange={(e) => setSelectedTool(e.target.value)}
+              className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3"
+            >
+              {tools.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+          </div>
         </div>
       </motion.div>
+
+      {/* Git Quick Actions Panel */}
+      <AnimatePresence>
+        {showGitPanel && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-b border-white/[0.06]"
+          >
+            <div className="px-3 sm:px-5 py-3 space-y-2.5">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: 'Status', cmd: 'status' },
+                  { label: 'Log', cmd: 'log --oneline -10' },
+                  { label: 'Diff', cmd: 'diff --stat' },
+                  { label: 'Pull', cmd: 'pull' },
+                  { label: 'Push', cmd: 'push' },
+                  { label: 'Branch', cmd: 'branch -a' },
+                  { label: 'Stash', cmd: 'stash' },
+                  { label: 'Stash Pop', cmd: 'stash pop' },
+                ].map(({ label, cmd }) => (
+                  <motion.button
+                    key={cmd}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => runGit(cmd)}
+                    disabled={isWaiting}
+                    className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.06] transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-mono"
+                  >
+                    {label}
+                  </motion.button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={commitMsg}
+                  onChange={(e) => setCommitMsg(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCommit() }}
+                  placeholder="Commit message..."
+                  className="input flex-1 text-xs py-1.5"
+                  disabled={isWaiting}
+                />
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleCommit}
+                  disabled={!commitMsg.trim() || isWaiting}
+                  className="text-[11px] px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                >
+                  Commit All
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3">
@@ -261,6 +365,61 @@ export default function Chat() {
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {/* Thinking animation — visible when waiting but no streaming output yet */}
+        <AnimatePresence>
+          {isWaiting && !streamingText && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex justify-start"
+            >
+              <div className="glass-card rounded-2xl px-5 py-4 flex items-center gap-3">
+                {/* Synapse logo pulse */}
+                <div className="relative w-8 h-8 flex items-center justify-center">
+                  <motion.div
+                    className="absolute inset-0 rounded-xl bg-synapse-500/20"
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <motion.div
+                    className="absolute inset-0 rounded-xl bg-synapse-500/10"
+                    animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+                  />
+                  <motion.svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="w-5 h-5 text-synapse-400 relative z-10"
+                    animate={{ rotate: [0, 360] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <path
+                      d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
+                      fill="currentColor"
+                      opacity="0.9"
+                    />
+                  </motion.svg>
+                </div>
+                {/* Animated dots */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500">Thinking</span>
+                  {[0, 1, 2].map(i => (
+                    <motion.span
+                      key={i}
+                      className="w-1 h-1 rounded-full bg-synapse-400"
+                      animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+                      transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div ref={bottomRef} />
       </div>
 

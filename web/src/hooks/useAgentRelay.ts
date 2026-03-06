@@ -32,7 +32,7 @@ export function useAgentRelay() {
     if (!user) return
 
     const channel = supabase.channel(`agent:${user.id}`, {
-      config: { broadcast: { self: false }, private: true },
+      config: { broadcast: { self: false } },
     })
 
     channel.on('broadcast', { event: 'output' }, ({ payload }) => {
@@ -146,6 +146,20 @@ export function useAgentRelay() {
     })
   }, [])
 
+  // Run a git command
+  const sendGit = useCallback(async (gitArgs: string, conversationId: string) => {
+    if (!channelRef.current) return
+    setOutputLines([])
+    setLastResult(null)
+    setIsWaiting(true)
+
+    await channelRef.current.send({
+      type: 'broadcast',
+      event: 'shell',
+      payload: { command: `git ${gitArgs}`, conversation_id: conversationId },
+    })
+  }, [])
+
   // Change working directory
   const sendSetWorkdir = useCallback(async (path: string) => {
     if (!channelRef.current) return
@@ -176,6 +190,7 @@ export function useAgentRelay() {
     sendListFiles,
     sendReadFile,
     sendShell,
+    sendGit,
     sendSetWorkdir,
     sendPing,
     clearOutput: () => { setOutputLines([]); setLastResult(null) },

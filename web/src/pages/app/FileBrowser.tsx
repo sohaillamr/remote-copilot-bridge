@@ -23,13 +23,22 @@ export default function FileBrowser() {
   useEffect(() => {
     function handleFilesResult(e: Event) {
       const detail = (e as CustomEvent).detail
-      if (detail?.files) setFiles(detail.files)
-      else if (Array.isArray(detail)) setFiles(detail)
+      if (detail?.items) {
+        setFiles(detail.items)
+        if (detail.path) setCurrentPath(detail.path)
+      } else if (detail?.files) {
+        setFiles(detail.files)
+      } else if (Array.isArray(detail)) {
+        setFiles(detail)
+      }
       setLoading(false)
     }
     function handleReadResult(e: Event) {
       const detail = (e as CustomEvent).detail
-      setViewingFile(detail)
+      setViewingFile({
+        name: detail?.filename || detail?.name || detail?.path || 'Unknown',
+        content: detail?.content || detail?.error || 'No content',
+      })
       setLoading(false)
     }
     window.addEventListener('synapse:files_result', handleFilesResult)
@@ -44,22 +53,29 @@ export default function FileBrowser() {
     if (isConnected) browse('.')
   }, [isConnected])
 
+  // Update breadcrumbs whenever currentPath changes
+  useEffect(() => {
+    if (currentPath === '.') setBreadcrumbs([])
+    else setBreadcrumbs(currentPath.replace(/\\/g, '/').split('/').filter(Boolean))
+  }, [currentPath])
+
   function browse(path: string) {
     setLoading(true)
     setViewingFile(null)
     setCurrentPath(path)
-    if (path === '.') setBreadcrumbs([])
-    else setBreadcrumbs(path.replace(/\\/g, '/').split('/').filter(Boolean))
     sendListFiles(path)
   }
 
   function openFile(entry: FileEntry) {
     if (entry.is_dir) {
-      const newPath = currentPath === '.' ? entry.name : `${currentPath}/${entry.name}`
+      // Use path separator based on what server returns
+      const sep = currentPath.includes('\\') ? '\\' : '/'
+      const newPath = currentPath === '.' ? entry.name : `${currentPath}${sep}${entry.name}`
       browse(newPath)
     } else {
       setLoading(true)
-      const filePath = currentPath === '.' ? entry.name : `${currentPath}/${entry.name}`
+      const sep = currentPath.includes('\\') ? '\\' : '/'
+      const filePath = currentPath === '.' ? entry.name : `${currentPath}${sep}${entry.name}`
       sendReadFile(filePath)
     }
   }
@@ -68,7 +84,8 @@ export default function FileBrowser() {
     if (currentPath === '.') return
     const parts = currentPath.replace(/\\/g, '/').split('/')
     parts.pop()
-    browse(parts.length === 0 ? '.' : parts.join('/'))
+    const parentPath = parts.join('/')
+    browse(parentPath || '.')
   }
 
   function goToBreadcrumb(index: number) {
