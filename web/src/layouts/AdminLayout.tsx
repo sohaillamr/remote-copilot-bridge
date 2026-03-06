@@ -1,0 +1,139 @@
+import { useState } from 'react'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../hooks/useAuth'
+import { LayoutDashboard, Users, DollarSign, Activity, Server, ArrowLeft, Shield, Menu, X } from 'lucide-react'
+
+export default function AdminLayout() {
+  const { profile } = useAuth()
+  const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const navItems = [
+    { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    { to: '/admin/users', icon: Users, label: 'Users', end: false },
+    { to: '/admin/revenue', icon: DollarSign, label: 'Revenue', end: false },
+    { to: '/admin/usage', icon: Activity, label: 'Usage', end: false },
+    { to: '/admin/system', icon: Server, label: 'System', end: false },
+  ]
+
+  const closeSidebar = () => setSidebarOpen(false)
+
+  const SidebarContent = () => (
+    <>
+      <div className="p-5 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <Shield className="text-amber-400" size={18} />
+              <div className="absolute inset-0 bg-amber-500/20 blur-md rounded-full" />
+            </div>
+            <span className="text-base font-bold tracking-tight text-amber-400">Admin</span>
+          </div>
+          <button onClick={closeSidebar} className="md:hidden p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="text-xs text-gray-600 mt-2 truncate font-mono">{profile?.email}</p>
+      </div>
+
+      <nav className="flex-1 p-3 space-y-0.5">
+        {navItems.map(({ to, icon: Icon, label, end }, i) => (
+          <motion.div
+            key={to}
+            initial={{ x: -10, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 + i * 0.05 }}
+          >
+            <NavLink
+              to={to}
+              end={end}
+              onClick={closeSidebar}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                  isActive
+                    ? 'bg-amber-600/10 text-amber-400 shadow-[inset_0_0_20px_rgba(245,158,11,0.04)]'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+                }`
+              }
+            >
+              <Icon size={17} />
+              {label}
+            </NavLink>
+          </motion.div>
+        ))}
+      </nav>
+
+      <div className="p-3 border-t border-white/[0.06]">
+        <button
+          onClick={() => { closeSidebar(); navigate('/app') }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:text-gray-400 hover:bg-white/[0.03] transition-all duration-200 w-full group"
+        >
+          <ArrowLeft size={17} className="group-hover:-translate-x-0.5 transition-transform" />
+          Back to App
+        </button>
+      </div>
+    </>
+  )
+
+  return (
+    <div className="flex h-screen bg-[#09090b]">
+      {/* Desktop Sidebar */}
+      <motion.aside
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.35 }}
+        className="hidden md:flex w-64 border-r border-amber-500/[0.08] flex-col bg-[#0c0c0f]/80 backdrop-blur-xl"
+      >
+        <SidebarContent />
+      </motion.aside>
+
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeSidebar}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed top-0 left-0 bottom-0 w-72 border-r border-amber-500/[0.08] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
+            >
+              <SidebarContent />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto flex flex-col">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-white/[0.06] text-gray-400 transition-colors">
+            <Menu size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <Shield className="text-amber-400" size={16} />
+            <span className="text-sm font-bold text-amber-400">Admin</span>
+          </div>
+          <div className="w-9" />
+        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="h-full flex-1"
+        >
+          <Outlet />
+        </motion.div>
+      </main>
+    </div>
+  )
+}

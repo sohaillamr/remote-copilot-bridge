@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "synapse-agent"
+version = "0.1.0"
+description = "Connect your AI CLI tools to Synapse — access Copilot, Claude, Gemini & more from anywhere"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Synapse", email = "hello@synapse.dev" }]
+keywords = ["ai", "cli", "copilot", "claude", "gemini", "codex", "remote", "bridge"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "supabase>=2.0",
+    "realtime>=2.0",
+    "click>=8.0",
+    "rich>=13.0",
+    "pyyaml>=6.0",
+    "websockets>=12.0",
+]
+
+[project.scripts]
+synapse = "synapse_agent.cli:main"
+
+[project.urls]
+Homepage = "https://synapse.dev"
+Repository = "https://github.com/sohaillamr/synapse"
+Documentation = "https://docs.synapse.dev"
