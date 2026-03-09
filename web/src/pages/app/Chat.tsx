@@ -9,6 +9,7 @@ import MarkdownMessage from '../../components/MarkdownMessage'
 import {
   Send, StopCircle, ChevronDown, Terminal, Mic, MicOff,
   GitBranch, Zap, Copy, Check, Plus, Clock, PanelLeftClose, PanelLeftOpen,
+  Pencil, Trash2,
 } from 'lucide-react'
 
 interface ChatMessage {
@@ -24,6 +25,7 @@ interface ConversationMeta {
   title: string
   tool: string | null
   created_at: string
+  updated_at: string
 }
 
 export default function Chat() {
@@ -56,6 +58,8 @@ export default function Chat() {
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
+  const [editingConvId, setEditingConvId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -71,6 +75,14 @@ export default function Chat() {
       setSelectedTool(toolsList[0])
     }
   }, [toolsList, selectedTool])
+
+  // Reset selected model when tool changes
+  useEffect(() => {
+    setSelectedModel('')
+  }, [selectedTool])
+
+  // Get model choices for the currently selected tool
+  const currentModels = modelChoices[selectedTool] || []
 
   const {
     isSupported: voiceSupported,
@@ -202,11 +214,42 @@ export default function Chat() {
   async function loadConversations() {
     const { data } = await supabase
       .from('conversations')
-      .select('id, title, tool, created_at')
+      .select('id, title, tool, created_at, updated_at')
       .eq('user_id', user!.id)
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(50)
     setConversations((data as ConversationMeta[]) || [])
+  }
+
+  async function deleteConversation(convId: string) {
+    await supabase.from('conversations').delete().eq('id', convId)
+    setConversations(prev => prev.filter(c => c.id !== convId))
+    if (convId === conversationId) {
+      navigate('/app/chat')
+      setMessages([])
+      clearOutput()
+    }
+  }
+
+  async function renameConversation(convId: string, newTitle: string) {
+    const trimmed = newTitle.trim()
+    if (!trimmed) return
+    await supabase.from('conversations').update({ title: trimmed }).eq('id', convId)
+    setConversations(prev =>
+      prev.map(c => (c.id === convId ? { ...c, title: trimmed } : c))
+    )
+  }
+
+  function relativeTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    if (days < 7) return `${days}d ago`
+    return new Date(dateStr).toLocaleDateString()
   }
 
   const handleCopyMessage = useCallback((content: string, msgId: string) => {
@@ -260,13 +303,20 @@ export default function Chat() {
             role: 'user',
             content: prompt,
           })
+          // Update conversation timestamp to re-order sidebar
+          if (conversationId) {
+            supabase.from('conversations')
+              .update({ updated_at: new Date().toISOString() })
+              .eq('id', convId)
+              .then(() => loadConversations())
+          }
         }
       } catch (err) {
         console.error('DB error:', err)
       }
     }
     sendPrompt(selectedTool, prompt, convId || crypto.randomUUID(), undefined, selectedModel || undefined)
-  }, [input, isConnected, isWaiting, user, conversationId, selectedTool, sendPrompt, isListening, stopListening, clearTranscript, navigate])
+  }, [input, isConnected, isWaiting, user, conversationId, selectedTool, selectedModel, sendPrompt, isListening, stopListening, clearTranscript, navigate])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -332,21 +382,54 @@ export default function Chat() {
                 <p className="text-xs text-gray-600 text-center py-6">No conversations yet</p>
               ) : (
                 conversations.map(conv => (
-                  <button
+                  <div
                     key={conv.id}
-                    onClick={() => navigate(`/app/chat/${conv.id}`)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
+                    onClick={() => { if (editingConvId !== conv.id) navigate(`/app/chat/${conv.id}`) }}
+                    className={`group/item w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer relative ${
                       conv.id === conversationId
                         ? 'bg-synapse-600/15 text-synapse-300'
                         : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
                     }`}
                   >
-                    <span className="block truncate">{conv.title || 'Untitled'}</span>
+                    {editingConvId === conv.id ? (
+                      <input
+                        value={editingTitle}
+                        onChange={e => setEditingTitle(e.target.value)}
+                        onBlur={() => { renameConversation(conv.id, editingTitle); setEditingConvId(null) }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { renameConversation(conv.id, editingTitle); setEditingConvId(null) }
+                          if (e.key === 'Escape') setEditingConvId(null)
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        autoFocus
+                        className="bg-transparent border border-synapse-500/30 rounded px-1 py-0.5 outline-none text-gray-300 w-full text-xs"
+                      />
+                    ) : (
+                      <span className="block truncate pr-10">{conv.title || 'Untitled'}</span>
+                    )}
                     <span className="flex items-center gap-1 text-[10px] text-gray-700 mt-0.5">
                       <Clock size={9} />
-                      {new Date(conv.created_at).toLocaleDateString()}
+                      {relativeTime(conv.updated_at || conv.created_at)}
                     </span>
-                  </button>
+                    {editingConvId !== conv.id && (
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditingConvId(conv.id); setEditingTitle(conv.title || '') }}
+                          className="p-1 rounded hover:bg-white/[0.08] text-gray-600 hover:text-gray-300 transition-colors"
+                          title="Rename"
+                        >
+                          <Pencil size={10} />
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); if (confirm('Delete this conversation?')) deleteConversation(conv.id) }}
+                          className="p-1 rounded hover:bg-red-500/10 text-gray-600 hover:text-red-400 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))
               )}
             </div>
@@ -411,16 +494,16 @@ export default function Chat() {
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
             </div>
             {/* Model selector (shows when models available for the selected tool) */}
-            {modelChoices.length > 0 && selectedTool === 'copilot' && (
+            {currentModels.length > 0 && (
               <div className="relative">
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[140px]"
+                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[160px]"
                   title="Select model"
                 >
                   <option value="">Default Model</option>
-                  {modelChoices.map(m => (
+                  {currentModels.map(m => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>

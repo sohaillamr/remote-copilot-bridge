@@ -25,6 +25,9 @@ export interface Profile {
   trial_ends_at: string | null
   subscription_ends_at: string | null
   customer_portal_url: string
+  plan_tier: string
+  edu_email: string | null
+  edu_verified_at: string | null
   banned_at: string | null
   created_at: string
   updated_at: string

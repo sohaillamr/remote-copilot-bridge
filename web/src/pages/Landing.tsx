@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Terminal, Globe, Shield, ArrowRight, Check, Sparkles, Cpu, Lock, Mic } from 'lucide-react'
+import { Zap, Terminal, Globe, Shield, ArrowRight, Check, Sparkles, Cpu, Lock, Mic, GraduationCap } from 'lucide-react'
 import GridBackground from '../components/GridBackground'
 import { FadeIn, StaggerContainer, StaggerItem, GlowCard, MagneticButton } from '../components/Animations'
 
@@ -347,7 +347,8 @@ export default function LandingPage() {
         </FadeIn>
 
         <FadeIn delay={0.2}>
-          <div className="max-w-md mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Pro Plan */}
             <motion.div
               whileHover={{ y: -4 }}
               transition={{ duration: 0.3 }}
@@ -355,7 +356,7 @@ export default function LandingPage() {
             >
               {/* Glow border */}
               <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-b from-synapse-500/30 via-synapse-500/10 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative glass-card rounded-3xl p-6 sm:p-8 md:p-10">
+              <div className="relative glass-card rounded-3xl p-6 sm:p-8">
                 <div className="text-center mb-6 sm:mb-8">
                   <div className="badge-synapse mb-4 mx-auto">Most Popular</div>
                   <h3 className="text-xl sm:text-2xl font-bold mb-1">Synapse Pro</h3>
@@ -380,6 +381,46 @@ export default function LandingPage() {
                 <MagneticButton className="w-full">
                   <Link to="/login" className="btn-primary w-full text-center block py-3.5 text-base">
                     Start 7-Day Free Trial
+                  </Link>
+                </MagneticButton>
+              </div>
+            </motion.div>
+
+            {/* Student Plan */}
+            <motion.div
+              whileHover={{ y: -4 }}
+              transition={{ duration: 0.3 }}
+              className="relative group"
+            >
+              <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-b from-purple-500/20 via-transparent to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-500" />
+              <div className="relative glass-card rounded-3xl p-6 sm:p-8">
+                <div className="text-center mb-6 sm:mb-8">
+                  <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/10 mb-4">
+                    <GraduationCap size={12} />
+                    Students
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold mb-1">Synapse Student</h3>
+                  <div className="flex items-baseline justify-center gap-1 mt-4">
+                    <span className="text-4xl sm:text-5xl font-extrabold">$4</span>
+                    <span className="text-gray-500">/month</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">or 200 EGP/month • .edu required</p>
+                </div>
+
+                <ul className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-8">
+                  {perks.map((perk) => (
+                    <li key={perk} className="flex items-center gap-3 text-sm">
+                      <div className="w-5 h-5 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
+                        <Check className="text-purple-400" size={12} />
+                      </div>
+                      <span className="text-gray-300">{perk}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <MagneticButton className="w-full">
+                  <Link to="/login" className="w-full text-center block py-3.5 text-base rounded-xl border border-purple-500/20 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 font-semibold transition-colors">
+                    Start Free Trial
                   </Link>
                 </MagneticButton>
               </div>

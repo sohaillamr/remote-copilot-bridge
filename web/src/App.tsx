@@ -6,6 +6,7 @@ import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import LandingPage from './pages/Landing'
 import LoginPage from './pages/Login'
+const PairPage = lazy(() => import('./pages/Pair'))
 import AppLayout from './layouts/AppLayout'
 import AdminLayout from './layouts/AdminLayout'
 import { Loader2 } from 'lucide-react'
@@ -67,6 +68,7 @@ function AnimatedRoutes() {
             {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/pair" element={<PairPage />} />
 
             {/* User App */}
             <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

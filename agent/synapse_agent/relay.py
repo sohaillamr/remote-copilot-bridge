@@ -28,7 +28,7 @@ from rich.console import Console
 from synapse_agent.bridge import ToolBridge
 from synapse_agent.config import load_config, save_config, get_supabase_config
 from synapse_agent.models import ToolResult
-from synapse_agent.tools import discover_all_tools, COPILOT_MODELS
+from synapse_agent.tools import discover_all_tools, TOOL_MODELS
 
 console = Console()
 
@@ -363,7 +363,7 @@ class SynapseRelay:
                     "work_dir": self.bridge.work_dir,
                     "is_busy": self.bridge.is_busy,
                     "tools": [t.to_dict() for t in tools],
-                    "model_choices": COPILOT_MODELS,
+                    "model_choices": TOOL_MODELS,
                     "timestamp": time.time(),
                 },
             )

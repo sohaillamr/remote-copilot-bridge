@@ -147,7 +147,10 @@ TOOL_REGISTRY: dict[str, dict] = {
 }
 
 
-# Copilot model choices (from `copilot --help`)
+# ──────────────────────────────────────────────────────────────────────────
+# Per-tool model choices
+# ──────────────────────────────────────────────────────────────────────────
+
 COPILOT_MODELS: list[str] = [
     "claude-sonnet-4.6",
     "claude-sonnet-4.5",
@@ -168,6 +171,42 @@ COPILOT_MODELS: list[str] = [
     "gpt-5-mini",
     "gpt-4.1",
 ]
+
+CLAUDE_MODELS: list[str] = [
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-20250514",
+    "claude-haiku-3.5-20241022",
+    "claude-sonnet-3.5-20241022",
+]
+
+GEMINI_MODELS: list[str] = [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+]
+
+CODEX_MODELS: list[str] = [
+    "o4-mini",
+    "o3",
+    "gpt-4.1",
+]
+
+AIDER_MODELS: list[str] = [
+    "sonnet",
+    "opus",
+    "gpt-4o",
+    "deepseek",
+    "gemini/gemini-2.5-pro",
+]
+
+# Unified mapping: tool name → available models
+TOOL_MODELS: dict[str, list[str]] = {
+    "copilot": COPILOT_MODELS,
+    "claude": CLAUDE_MODELS,
+    "gemini": GEMINI_MODELS,
+    "codex": CODEX_MODELS,
+    "aider": AIDER_MODELS,
+}
 
 
 def find_tool_binary(tool_name: str) -> str | None:
@@ -247,12 +286,20 @@ def get_tool_command(
             args.extend(["--model", model])
     elif tool_name == "claude":
         args = [binary, "-p", prompt, "--allowedTools", "all"]
+        if model:
+            args.extend(["--model", model])
     elif tool_name == "gemini":
         args = [binary, "-p", prompt]
+        if model:
+            args.extend(["--model", model])
     elif tool_name == "codex":
         args = [binary, "-q", prompt]
+        if model:
+            args.extend(["--model", model])
     elif tool_name == "aider":
         args = [binary, "--message", prompt, "--yes"]
+        if model:
+            args.extend(["--model", model])
     else:
         # Fallback: use template-based string (legacy)
         template = tool.get("command_template", '{binary} "{prompt}"')

@@ -71,7 +71,7 @@ interface AgentRelayContextType {
 
   // Detected tools from the live agent
   detectedTools: DetectedTool[]
-  modelChoices: string[]
+  modelChoices: Record<string, string[]>
   agentWorkDir: string
 
   // Streaming
@@ -115,7 +115,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
   const [agentReachable, setAgentReachable] = useState(false)
   const [detectedTools, setDetectedTools] = useState<DetectedTool[]>([])
   const [agentWorkDir, setAgentWorkDir] = useState('')
-  const [modelChoices, setModelChoices] = useState<string[]>([])
+  const [modelChoices, setModelChoices] = useState<Record<string, string[]>>({})
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
   // Streaming
@@ -221,7 +221,9 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
         ))
       }
       if (p?.work_dir) setAgentWorkDir(p.work_dir)
-      if (Array.isArray(p?.model_choices)) setModelChoices(p.model_choices)
+      if (p?.model_choices && typeof p.model_choices === 'object' && !Array.isArray(p.model_choices)) {
+        setModelChoices(p.model_choices as Record<string, string[]>)
+      }
 
       window.dispatchEvent(new CustomEvent('synapse:pong', { detail: payload }))
     })
