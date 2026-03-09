@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import CustomCursor from './components/CustomCursor'
+import ErrorBoundary from './components/ErrorBoundary'
 import LandingPage from './pages/Landing'
 import LoginPage from './pages/Login'
 import AppLayout from './layouts/AppLayout'
@@ -97,7 +98,9 @@ export default function App() {
   return (
     <AuthProvider>
       <CustomCursor />
-      <AnimatedRoutes />
+      <ErrorBoundary>
+        <AnimatedRoutes />
+      </ErrorBoundary>
     </AuthProvider>
   )
 }

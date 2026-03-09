@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy } from 'lucide-react'
+import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
 export default function Settings() {
@@ -11,6 +11,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentPlan, setPaymentPlan] = useState<'usd' | 'egp'>('usd')
 
   async function handleSave() {
     if (!user) return
@@ -121,8 +123,8 @@ export default function Settings() {
                 <div className="space-y-2">
                   <button
                     onClick={() => {
-                      // Paymob integration — will be configured later
-                      alert('Paymob payment integration coming soon. Contact support for manual activation.')
+                      setPaymentPlan('usd')
+                      setShowPaymentModal(true)
                     }}
                     className="btn-primary w-full text-center block text-sm py-2.5"
                   >
@@ -130,8 +132,8 @@ export default function Settings() {
                   </button>
                   <button
                     onClick={() => {
-                      // Paymob EGP flow — will be configured later
-                      alert('Paymob EGP payment integration coming soon. Contact support for manual activation.')
+                      setPaymentPlan('egp')
+                      setShowPaymentModal(true)
                     }}
                     className="w-full text-center text-[11px] text-gray-600 hover:text-synapse-400 transition-colors py-1"
                   >
@@ -228,6 +230,66 @@ export default function Settings() {
           Sign Out
         </motion.button>
       </FadeIn>
+
+      {/* Payment Modal */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPaymentModal(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            >
+              <div className="glass-card rounded-2xl p-6 sm:p-8 max-w-sm w-full relative border border-white/[0.08]">
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+                <div className="text-center mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto mb-4">
+                    <CreditCard className="text-synapse-400" size={22} />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    {paymentPlan === 'usd' ? 'Subscribe — $5/mo' : 'Subscribe — 250 EGP/mo'}
+                  </h3>
+                  <p className="text-xs text-gray-500">Unlimited prompts, all AI tools, priority support</p>
+                </div>
+                <div className="space-y-3 mb-6 text-sm text-gray-400">
+                  {['Unlimited AI prompts', 'All CLI tools (Copilot, Claude, Gemini…)', 'Model selection', 'File browser & shell access', 'Priority support'].map((f, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-400 shrink-0" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                </div>
+                <a
+                  href={paymentPlan === 'usd'
+                    ? 'https://accept.paymob.com/synapse-usd'
+                    : 'https://accept.paymob.com/synapse-egp'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary w-full text-center block text-sm py-3 font-medium"
+                >
+                  Continue to Payment
+                </a>
+                <p className="text-[10px] text-gray-700 text-center mt-3">
+                  Secure payment via Paymob. Cancel anytime.
+                </p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

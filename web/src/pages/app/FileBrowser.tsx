@@ -4,13 +4,98 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRelay } from '../../contexts/AgentRelayContext'
 import {
   Folder, File, ArrowLeft, RefreshCw, Home, ChevronRight,
-  FileText, AlertCircle, FolderOpen, Zap, Check,
+  FileText, AlertCircle, FolderOpen, Zap, Check, Copy,
 } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface FileEntry {
   name: string
   is_dir: boolean
   size?: number
+}
+
+// File extension → language mapping for syntax highlighting
+function getLanguage(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() || ''
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
+    py: 'python', rb: 'ruby', rs: 'rust', go: 'go', java: 'java',
+    c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', cs: 'csharp',
+    json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
+    md: 'markdown', html: 'html', css: 'css', scss: 'scss',
+    sql: 'sql', sh: 'bash', bat: 'batch', ps1: 'powershell',
+    xml: 'xml', dockerfile: 'docker', makefile: 'makefile',
+  }
+  return map[ext] || 'text'
+}
+
+function FileViewerPanel({ viewingFile, onBack }: {
+  viewingFile: { name: string; content: string }
+  onBack: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const lang = getLanguage(viewingFile.name)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(viewingFile.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Strip line numbers if present (agent adds "  42 │ " prefix)
+  const rawContent = viewingFile.content.replace(/^\s*\d+\s*│\s?/gm, '')
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={onBack}
+          className="btn-secondary text-xs flex items-center gap-1.5"
+        >
+          <ArrowLeft size={13} /> Back
+        </motion.button>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors px-2 py-1 rounded-lg hover:bg-white/[0.06]"
+        >
+          {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <div className="glass-card rounded-xl overflow-hidden">
+        <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 border-b border-white/[0.06] text-gray-500">
+          <FileText size={15} />
+          <span className="font-mono text-xs truncate flex-1">{viewingFile.name}</span>
+          <span className="text-[10px] text-gray-700 font-mono">{lang}</span>
+        </div>
+        {lang !== 'text' ? (
+          <SyntaxHighlighter
+            language={lang}
+            style={oneDark}
+            showLineNumbers
+            customStyle={{
+              margin: 0,
+              background: 'transparent',
+              fontSize: '0.75rem',
+              padding: '1rem',
+              maxHeight: '65vh',
+              overflow: 'auto',
+            }}
+            lineNumberStyle={{ color: '#374151', minWidth: '2.5em', paddingRight: '1em' }}
+            wrapLongLines
+          >
+            {rawContent}
+          </SyntaxHighlighter>
+        ) : (
+          <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto text-gray-400 max-h-[65vh] overflow-y-auto leading-relaxed p-3 sm:p-5">
+            {rawContent}
+          </pre>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function FileBrowser() {
@@ -270,24 +355,10 @@ export default function FileBrowser() {
 
       {/* File view or directory listing */}
       {viewingFile ? (
-        <div className="space-y-3">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => { setViewingFile(null); setError(null) }}
-            className="btn-secondary text-xs flex items-center gap-1.5"
-          >
-            <ArrowLeft size={13} /> Back
-          </motion.button>
-          <div className="glass-card rounded-xl p-3 sm:p-5">
-            <div className="flex items-center gap-2 mb-4 text-gray-500">
-              <FileText size={15} />
-              <span className="font-mono text-xs truncate">{viewingFile.name}</span>
-            </div>
-            <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto text-gray-400 max-h-[65vh] overflow-y-auto leading-relaxed">
-              {viewingFile.content}
-            </pre>
-          </div>
-        </div>
+        <FileViewerPanel
+          viewingFile={viewingFile}
+          onBack={() => { setViewingFile(null); setError(null) }}
+        />
       ) : (
         <div className="glass-card rounded-xl overflow-hidden">
           {currentPath !== '.' && (

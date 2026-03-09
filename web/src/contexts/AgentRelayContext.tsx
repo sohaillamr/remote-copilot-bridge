@@ -71,6 +71,7 @@ interface AgentRelayContextType {
 
   // Detected tools from the live agent
   detectedTools: DetectedTool[]
+  modelChoices: string[]
   agentWorkDir: string
 
   // Streaming
@@ -79,7 +80,7 @@ interface AgentRelayContextType {
   isWaiting: boolean
 
   // Actions
-  sendPrompt: (tool: string, text: string, conversationId: string, timeout?: number) => Promise<void>
+  sendPrompt: (tool: string, text: string, conversationId: string, timeout?: number, model?: string) => Promise<void>
   sendCancel: () => Promise<void>
   sendListFiles: (path?: string) => Promise<void>
   sendReadFile: (path: string, startLine?: number, endLine?: number) => Promise<void>
@@ -114,6 +115,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
   const [agentReachable, setAgentReachable] = useState(false)
   const [detectedTools, setDetectedTools] = useState<DetectedTool[]>([])
   const [agentWorkDir, setAgentWorkDir] = useState('')
+  const [modelChoices, setModelChoices] = useState<string[]>([])
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
   // Streaming
@@ -173,9 +175,10 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
 
     // --- Streaming events ---
     channel.on('broadcast', { event: 'output' }, ({ payload }) => {
+      const line = payload as OutputLine
       setOutputLines(prev => {
         // Cap at 500 lines to prevent memory bloat
-        const next = [...prev, payload as OutputLine]
+        const next = [...prev, { ...line, conversation_id: line.conversation_id }]
         return next.length > 500 ? next.slice(-500) : next
       })
     })
@@ -218,6 +221,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
         ))
       }
       if (p?.work_dir) setAgentWorkDir(p.work_dir)
+      if (Array.isArray(p?.model_choices)) setModelChoices(p.model_choices)
 
       window.dispatchEvent(new CustomEvent('synapse:pong', { detail: payload }))
     })
@@ -271,17 +275,31 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
   // ── Actions ──────────────────────────────────────────────
 
   const sendPrompt = useCallback(async (
-    tool: string, text: string, conversationId: string, timeout?: number
+    tool: string, text: string, conversationId: string, timeout?: number, model?: string
   ) => {
-    if (!channelRef.current) return
+    if (!channelRef.current) {
+      addToast('Not connected to channel', 'error')
+      return
+    }
     setOutputLines([])
     setLastResult(null)
     setIsWaiting(true)
-    await channelRef.current.send({
-      type: 'broadcast', event: 'prompt',
-      payload: { tool, text, conversation_id: conversationId, timeout },
-    })
-  }, [])
+    try {
+      const status = await channelRef.current.send({
+        type: 'broadcast', event: 'prompt',
+        payload: { tool, text, conversation_id: conversationId, timeout, model },
+      })
+      if (status !== 'ok') {
+        console.error('Broadcast send status:', status)
+        addToast(`Broadcast failed: ${status}`, 'error')
+        setIsWaiting(false)
+      }
+    } catch (err) {
+      console.error('sendPrompt error:', err)
+      addToast('Failed to send prompt', 'error')
+      setIsWaiting(false)
+    }
+  }, [addToast])
 
   const sendCancel = useCallback(async () => {
     if (!channelRef.current) return
@@ -357,6 +375,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
         selectAgent: setSelectedAgent,
         refreshAgents,
         detectedTools,
+        modelChoices,
         agentWorkDir,
         outputLines,
         lastResult,

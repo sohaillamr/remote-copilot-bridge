@@ -28,7 +28,7 @@ from rich.console import Console
 from synapse_agent.bridge import ToolBridge
 from synapse_agent.config import load_config, save_config, get_supabase_config
 from synapse_agent.models import ToolResult
-from synapse_agent.tools import discover_all_tools
+from synapse_agent.tools import discover_all_tools, COPILOT_MODELS
 
 console = Console()
 
@@ -210,10 +210,13 @@ class SynapseRelay:
         conversation_id = data.get("conversation_id", "")
         timeout = data.get("timeout", self.config.get("default_timeout", 120))
 
+        model = data.get("model")
+
         if not prompt:
             return
 
-        console.print(f"\n[bold cyan]Prompt ({tool}):[/bold cyan] {prompt[:100]}...")
+        model_info = f" [{model}]" if model else ""
+        console.print(f"\n[bold cyan]Prompt ({tool}{model_info}):[/bold cyan] {prompt[:100]}...")
 
         async def on_line(line: str) -> None:
             """Stream each output line back via Broadcast."""
@@ -235,6 +238,7 @@ class SynapseRelay:
             prompt=prompt,
             timeout=timeout,
             on_line=on_line,
+            model=model,
         )
 
         # Send final result event
@@ -359,6 +363,7 @@ class SynapseRelay:
                     "work_dir": self.bridge.work_dir,
                     "is_busy": self.bridge.is_busy,
                     "tools": [t.to_dict() for t in tools],
+                    "model_choices": COPILOT_MODELS,
                     "timestamp": time.time(),
                 },
             )

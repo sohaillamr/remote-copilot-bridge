@@ -147,6 +147,29 @@ TOOL_REGISTRY: dict[str, dict] = {
 }
 
 
+# Copilot model choices (from `copilot --help`)
+COPILOT_MODELS: list[str] = [
+    "claude-sonnet-4.6",
+    "claude-sonnet-4.5",
+    "claude-haiku-4.5",
+    "claude-opus-4.6",
+    "claude-opus-4.6-fast",
+    "claude-opus-4.5",
+    "claude-sonnet-4",
+    "gemini-3-pro-preview",
+    "gpt-5.4",
+    "gpt-5.3-codex",
+    "gpt-5.2-codex",
+    "gpt-5.2",
+    "gpt-5.1-codex-max",
+    "gpt-5.1-codex",
+    "gpt-5.1",
+    "gpt-5.1-codex-mini",
+    "gpt-5-mini",
+    "gpt-4.1",
+]
+
+
 def find_tool_binary(tool_name: str) -> str | None:
     """
     Locate a tool's binary. Checks known paths first, then falls back to PATH.
@@ -198,11 +221,16 @@ def discover_all_tools() -> list[ToolInfo]:
     return found
 
 
-def get_tool_command(tool_name: str, prompt: str, binary_path: str | None = None) -> str | None:
+def get_tool_command(
+    tool_name: str,
+    prompt: str,
+    binary_path: str | None = None,
+    model: str | None = None,
+) -> list[str] | None:
     """
-    Build the shell command for a given tool and prompt.
+    Build the command args list for a given tool and prompt.
 
-    Returns the command string ready for subprocess, or None if tool not found.
+    Returns a list of arguments ready for subprocess (no shell), or None if tool not found.
     """
     tool = TOOL_REGISTRY.get(tool_name)
     if not tool:
@@ -212,5 +240,23 @@ def get_tool_command(tool_name: str, prompt: str, binary_path: str | None = None
     if not binary:
         return None
 
-    template = tool.get("command_template", '{binary} "{prompt}"')
-    return template.format(binary=binary, prompt=prompt.replace('"', '\\"'))
+    # Build args list directly — avoids shell injection
+    if tool_name == "copilot":
+        args = [binary, "-p", prompt, "--allow-all"]
+        if model and model in COPILOT_MODELS:
+            args.extend(["--model", model])
+    elif tool_name == "claude":
+        args = [binary, "-p", prompt, "--allowedTools", "all"]
+    elif tool_name == "gemini":
+        args = [binary, "-p", prompt]
+    elif tool_name == "codex":
+        args = [binary, "-q", prompt]
+    elif tool_name == "aider":
+        args = [binary, "--message", prompt, "--yes"]
+    else:
+        # Fallback: use template-based string (legacy)
+        template = tool.get("command_template", '{binary} "{prompt}"')
+        cmd = template.format(binary=binary, prompt=prompt.replace('"', '\\"'))
+        return cmd  # type: ignore[return-value]
+
+    return args

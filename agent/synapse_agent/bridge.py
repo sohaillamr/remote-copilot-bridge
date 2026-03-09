@@ -54,7 +54,7 @@ class ToolBridge:
 
     async def _stream_execute(
         self,
-        cmd_str: str,
+        cmd: str | list[str],
         cwd: str,
         timeout: int,
         on_line: Callable[[str], Awaitable[None]] | None = None,
@@ -62,6 +62,7 @@ class ToolBridge:
         """
         Execute a command with line-by-line streaming.
 
+        Accepts either a shell command string or a list of args.
         If on_line is provided, each stdout/stderr line is sent to the
         callback as it arrives (for real-time Broadcast to the web portal).
         Full output is also accumulated in the result.
@@ -73,12 +74,20 @@ class ToolBridge:
         lines_streamed = 0
 
         try:
-            self._current_process = await asyncio.create_subprocess_shell(
-                cmd_str,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-            )
+            if isinstance(cmd, list):
+                self._current_process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                )
+            else:
+                self._current_process = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                )
 
             async def read_stream(
                 stream: asyncio.StreamReader,
@@ -145,6 +154,7 @@ class ToolBridge:
         work_dir: str | None = None,
         timeout: int = 120,
         on_line: Callable[[str], Awaitable[None]] | None = None,
+        model: str | None = None,
     ) -> ToolResult:
         """
         Send a prompt to an AI CLI tool and return the result.
@@ -174,15 +184,15 @@ class ToolBridge:
                     )
                 self._tool_cache[tool_name] = binary
 
-            cmd_str = get_tool_command(tool_name, prompt, binary)
-            if not cmd_str:
+            cmd = get_tool_command(tool_name, prompt, binary, model=model)
+            if not cmd:
                 return ToolResult(
                     stderr=f"❌ Could not build command for '{tool_name}'.",
                     exit_code=1,
                     tool=tool_name,
                 )
 
-            result = await self._stream_execute(cmd_str, cwd, timeout, on_line)
+            result = await self._stream_execute(cmd, cwd, timeout, on_line)
             result.tool = tool_name
             return result
 

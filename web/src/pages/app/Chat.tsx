@@ -40,8 +40,11 @@ export default function Chat() {
     sendCancel,
     sendGit,
     detectedTools,
+    modelChoices,
     clearOutput,
+    addToast,
   } = useRelay()
+  const { hasActiveSubscription } = useAuth()
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -50,6 +53,7 @@ export default function Chat() {
   const [showGitPanel, setShowGitPanel] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string>('')
 
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
@@ -115,22 +119,41 @@ export default function Chat() {
     if (user) loadConversations()
   }, [user])
 
-  // Streaming → messages
+  // Streaming → messages + persist assistant response to DB
   useEffect(() => {
     if (lastResult) {
+      const content = lastResult.stdout || lastResult.stderr || 'No output.'
+      const msgId = crypto.randomUUID()
       setMessages(prev => {
         const filtered = prev.filter(m => m.id !== 'streaming')
         return [
           ...filtered,
           {
-            id: crypto.randomUUID(),
+            id: msgId,
             role: 'assistant',
-            content: lastResult.stdout || lastResult.stderr || 'No output.',
-            tool: selectedTool,
+            content,
+            tool: lastResult.tool || selectedTool,
             timestamp: new Date(),
           },
         ]
       })
+      // Persist assistant message to DB
+      const convId = conversationId || lastResult.conversation_id
+      if (convId && user) {
+        supabase.from('messages').insert({
+          conversation_id: convId,
+          role: 'assistant',
+          content,
+          tool_name: lastResult.tool || selectedTool,
+          metadata: {
+            exit_code: lastResult.exit_code,
+            duration: lastResult.duration,
+            timed_out: lastResult.timed_out,
+          },
+        }).then(({ error }) => {
+          if (error) console.error('Failed to save assistant message:', error)
+        })
+      }
     }
   }, [lastResult])
 
@@ -209,6 +232,12 @@ export default function Chat() {
     const prompt = input.trim()
     if (!prompt || !isConnected || isWaiting) return
 
+    // Subscription enforcement
+    if (!hasActiveSubscription) {
+      addToast('Your trial has expired. Please subscribe to continue.', 'warning', 5000)
+      return
+    }
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -220,27 +249,31 @@ export default function Chat() {
 
     let convId = conversationId
     if (user) {
-      if (!convId) {
-        const { data } = await supabase
-          .from('conversations')
-          .insert({ user_id: user.id, title: prompt.slice(0, 100), tool: selectedTool })
-          .select()
-          .single()
-        convId = data?.id
-        if (convId) {
-          navigate(`/app/chat/${convId}`, { replace: true })
-          loadConversations()
+      try {
+        if (!convId) {
+          const { data } = await supabase
+            .from('conversations')
+            .insert({ user_id: user.id, title: prompt.slice(0, 100), tool: selectedTool })
+            .select()
+            .single()
+          convId = data?.id
+          if (convId) {
+            navigate(`/app/chat/${convId}`, { replace: true })
+            loadConversations()
+          }
         }
-      }
-      if (convId) {
-        await supabase.from('messages').insert({
-          conversation_id: convId,
-          role: 'user',
-          content: prompt,
-        })
+        if (convId) {
+          await supabase.from('messages').insert({
+            conversation_id: convId,
+            role: 'user',
+            content: prompt,
+          })
+        }
+      } catch (err) {
+        console.error('DB error:', err)
       }
     }
-    sendPrompt(selectedTool, prompt, convId || crypto.randomUUID())
+    sendPrompt(selectedTool, prompt, convId || crypto.randomUUID(), undefined, selectedModel || undefined)
   }, [input, isConnected, isWaiting, user, conversationId, selectedTool, sendPrompt, isListening, stopListening, clearTranscript, navigate])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -277,11 +310,11 @@ export default function Chat() {
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, userMsg])
-    // Send as two safe args instead of shell-injected string
-    sendGit('add -A', crypto.randomUUID())
-    setTimeout(() => {
-      sendGit(`commit -m "${msg}"`, crypto.randomUUID())
-    }, 500)
+    // Send as two sequential git commands
+    await sendGit('add -A', crypto.randomUUID())
+    // Wait for add to finish before committing
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    await sendGit(`commit -m "${msg}"`, crypto.randomUUID())
   }, [commitMsg, isConnected, isWaiting, sendGit])
 
   return (
@@ -385,6 +418,23 @@ export default function Chat() {
               </select>
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
             </div>
+            {/* Model selector (shows when models available for the selected tool) */}
+            {modelChoices.length > 0 && selectedTool === 'copilot' && (
+              <div className="relative">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[140px]"
+                  title="Select model"
+                >
+                  <option value="">Default Model</option>
+                  {modelChoices.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+              </div>
+            )}
           </div>
         </motion.div>
 

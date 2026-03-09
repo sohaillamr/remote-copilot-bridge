@@ -8,7 +8,7 @@ import { MessageSquare, Wifi, WifiOff, Terminal, Clock, ArrowRight, Zap, Check }
 import { FadeIn, StaggerContainer, StaggerItem } from '../../components/Animations'
 
 export default function Dashboard() {
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const { selectedAgent, selectAgent, detectedTools, agentReachable } = useRelay()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
@@ -18,9 +18,11 @@ export default function Dashboard() {
   }, [])
 
   async function loadAgents() {
+    if (!user) return
     const { data } = await supabase
       .from('agents')
       .select('*')
+      .eq('user_id', user.id)
       .order('last_seen_at', { ascending: false })
     setAgents(data || [])
     setLoading(false)
