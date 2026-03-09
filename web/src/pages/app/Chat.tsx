@@ -485,10 +485,10 @@ export default function Chat() {
               <select
                 value={selectedTool}
                 onChange={(e) => setSelectedTool(e.target.value)}
-                className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3"
+                className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 bg-[#141420] text-gray-200"
               >
                 {toolsList.map(t => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t} className="bg-[#141420] text-gray-200">{t}</option>
                 ))}
               </select>
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
@@ -499,12 +499,12 @@ export default function Chat() {
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[160px]"
+                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[200px] bg-[#141420] text-gray-200"
                   title="Select model"
                 >
-                  <option value="">Default Model</option>
+                  <option value="" className="bg-[#141420] text-gray-200">Default Model</option>
                   {currentModels.map(m => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m} className="bg-[#141420] text-gray-200">{m}</option>
                   ))}
                 </select>
                 <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />

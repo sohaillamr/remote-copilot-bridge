@@ -15,6 +15,7 @@ export default function Settings() {
   const [paymentPlan, setPaymentPlan] = useState<'usd' | 'egp'>('usd')
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
+  const [qrError, setQrError] = useState('')
   const [showStudentModal, setShowStudentModal] = useState(false)
   const [eduEmail, setEduEmail] = useState('')
   const [eduSaving, setEduSaving] = useState(false)
@@ -44,6 +45,11 @@ export default function Settings() {
       setQrToken(token)
     } catch (err: any) {
       console.error('QR token error:', err)
+      setQrError(
+        err.message?.includes('device_tokens')
+          ? 'Run the SQL migration (002_features.sql) in Supabase first.'
+          : (err.message || 'Failed to generate QR code')
+      )
     } finally {
       setQrLoading(false)
     }
@@ -264,15 +270,20 @@ export default function Settings() {
               </button>
             </div>
           ) : (
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={generateQrToken}
-              disabled={qrLoading}
-              className="btn-secondary w-full text-center text-sm py-2.5 flex items-center justify-center gap-2"
+            <div className="space-y-2">
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => { setQrError(''); generateQrToken() }}
+                disabled={qrLoading}
+                className="btn-secondary w-full text-center text-sm py-2.5 flex items-center justify-center gap-2"
             >
               {qrLoading ? <Loader2 className="animate-spin" size={14} /> : <QrCode size={14} />}
               Generate QR Code
             </motion.button>
+            {qrError && (
+              <p className="text-xs text-red-400 text-center">{qrError}</p>
+            )}
+            </div>
           )}
         </div>
       </FadeIn>
