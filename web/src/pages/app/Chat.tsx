@@ -42,9 +42,7 @@ export default function Chat() {
     detectedTools,
     modelChoices,
     clearOutput,
-    addToast,
   } = useRelay()
-  const { hasActiveSubscription } = useAuth()
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -57,7 +55,7 @@ export default function Chat() {
 
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -231,12 +229,6 @@ export default function Chat() {
 
     const prompt = input.trim()
     if (!prompt || !isConnected || isWaiting) return
-
-    // Subscription enforcement
-    if (!hasActiveSubscription) {
-      addToast('Your trial has expired. Please subscribe to continue.', 'warning', 5000)
-      return
-    }
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
