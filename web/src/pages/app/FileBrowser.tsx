@@ -291,14 +291,14 @@ export default function FileBrowser() {
             whileTap={{ scale: 0.95 }}
             onClick={handleSetWorkdir}
             disabled={currentPath === '.' || settingWorkdir}
-            className="btn-secondary text-xs px-2 sm:px-3 py-1.5 hidden sm:inline-flex items-center gap-1.5 disabled:opacity-30"
+            className="btn-secondary text-xs px-2 sm:px-3 py-1.5 inline-flex items-center gap-1.5 disabled:opacity-30"
           >
             {workdirSet ? (
-              <><Check size={12} className="text-emerald-400" /> Done</>
+              <><Check size={12} className="text-emerald-400" /> <span className="hidden sm:inline">Done</span></>
             ) : settingWorkdir ? (
-              <><Zap size={12} className="animate-pulse" /> Setting...</>
+              <><Zap size={12} className="animate-pulse" /> <span className="hidden sm:inline">Setting...</span></>
             ) : (
-              <>Set as Workdir</>
+              <><span className="hidden sm:inline">Set as Workdir</span><span className="sm:hidden">Set Dir</span></>
             )}
           </motion.button>
           <motion.button
@@ -314,7 +314,7 @@ export default function FileBrowser() {
       </div>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs text-gray-500 overflow-x-auto font-mono pb-1 scrollbar-hide">
+      <div className="flex items-center gap-1 text-xs text-gray-500 overflow-x-auto font-mono pb-1 scrollbar-hide -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button onClick={() => browse('.')} className="hover:text-white transition-colors shrink-0" title="Agent root">
           <Home size={13} />
         </button>

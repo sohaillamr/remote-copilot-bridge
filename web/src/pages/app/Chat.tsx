@@ -57,7 +57,7 @@ export default function Chat() {
 
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024)
   const [editingConvId, setEditingConvId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
 
@@ -364,12 +364,21 @@ export default function Chat() {
       {/* ─── Conversation Sidebar ─── */}
       <AnimatePresence>
         {sidebarOpen && (
+          <>
+          {/* Mobile overlay backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+          />
           <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 260, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="border-r border-white/[0.06] bg-[#0c0c0f]/60 backdrop-blur-sm flex flex-col overflow-hidden shrink-0"
+            className="fixed md:relative top-0 left-0 bottom-0 z-50 md:z-auto border-r border-white/[0.06] bg-[#0c0c0f]/95 md:bg-[#0c0c0f]/60 backdrop-blur-xl md:backdrop-blur-sm flex flex-col overflow-hidden shrink-0"
           >
             <div className="p-3 border-b border-white/[0.06] flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-400 tracking-wide uppercase">History</span>
@@ -384,7 +393,7 @@ export default function Chat() {
                 conversations.map(conv => (
                   <div
                     key={conv.id}
-                    onClick={() => { if (editingConvId !== conv.id) navigate(`/app/chat/${conv.id}`) }}
+                    onClick={() => { if (editingConvId !== conv.id) { navigate(`/app/chat/${conv.id}`); if (window.innerWidth < 768) setSidebarOpen(false) } }}
                     className={`group/item w-full text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer relative ${
                       conv.id === conversationId
                         ? 'bg-synapse-600/15 text-synapse-300'
@@ -434,6 +443,7 @@ export default function Chat() {
               )}
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -443,31 +453,33 @@ export default function Chat() {
         <motion.div
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="flex items-center justify-between px-3 sm:px-5 py-3 border-b border-white/[0.06]"
+          className="border-b border-white/[0.06]"
         >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => setSidebarOpen(v => !v)}
-              className="p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
-              title="Toggle history"
-            >
-              {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-            </button>
-            <h1 className="font-semibold text-sm hidden sm:block">Chat</h1>
-            <div className={`flex items-center gap-1.5 text-[11px] px-2 sm:px-2.5 py-1 rounded-full ${
-              agentReachable
-                ? 'bg-emerald-500/10 text-emerald-400'
-                : isConnected
-                  ? 'bg-amber-500/10 text-amber-400'
-                  : 'bg-red-500/10 text-red-400'
-            }`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${
-                agentReachable ? 'bg-emerald-400 animate-pulse' : isConnected ? 'bg-amber-400' : 'bg-red-400'
-              }`} />
-              {agentReachable ? 'Agent Online' : isConnected ? 'Channel Only' : 'Offline'}
+          {/* Top row: sidebar toggle, status, git */}
+          <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setSidebarOpen(v => !v)}
+                className="p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
+                title="Toggle history"
+              >
+                {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+              </button>
+              <h1 className="font-semibold text-sm hidden sm:block">Chat</h1>
+              <div className={`flex items-center gap-1.5 text-[11px] px-2 sm:px-2.5 py-1 rounded-full ${
+                agentReachable
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : isConnected
+                    ? 'bg-amber-500/10 text-amber-400'
+                    : 'bg-red-500/10 text-red-400'
+              }`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  agentReachable ? 'bg-emerald-400 animate-pulse' : isConnected ? 'bg-amber-400' : 'bg-red-400'
+                }`} />
+                <span className="hidden sm:inline">{agentReachable ? 'Agent Online' : isConnected ? 'Channel Only' : 'Offline'}</span>
+                <span className="sm:hidden">{agentReachable ? 'Online' : isConnected ? 'Channel' : 'Off'}</span>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowGitPanel(v => !v)}
@@ -480,8 +492,11 @@ export default function Chat() {
               <GitBranch size={13} />
               <span className="hidden sm:inline">Git</span>
             </motion.button>
+          </div>
+          {/* Bottom row: tool + model selectors (scrollable on mobile) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 pb-2.5 sm:pb-3 overflow-x-auto scrollbar-hide">
             {/* Tool selector */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <select
                 value={selectedTool}
                 onChange={(e) => setSelectedTool(e.target.value)}
@@ -495,11 +510,11 @@ export default function Chat() {
             </div>
             {/* Model selector (shows when models available for the selected tool) */}
             {currentModels.length > 0 && (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[200px] bg-[#141420] text-gray-200"
+                  className="input text-xs pr-7 appearance-none cursor-pointer py-1.5 px-2 sm:px-3 max-w-[180px] sm:max-w-[200px] bg-[#141420] text-gray-200"
                   title="Select model"
                 >
                   <option value="" className="bg-[#141420] text-gray-200">Default Model</option>
@@ -577,7 +592,7 @@ export default function Chat() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-center py-16 sm:py-24"
+              className="text-center py-10 sm:py-24"
             >
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto mb-4 sm:mb-5">
                 <Terminal className="text-synapse-400" size={22} />
@@ -607,7 +622,7 @@ export default function Chat() {
                 transition={{ duration: 0.2 }}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`relative group max-w-[85vw] sm:max-w-2xl rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
+                <div className={`relative group max-w-[88vw] sm:max-w-2xl rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
                   msg.role === 'user'
                     ? 'bg-synapse-600/20 border border-synapse-500/10'
                     : 'glass-card'
@@ -712,7 +727,7 @@ export default function Chat() {
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="border-t border-white/[0.06] p-3 sm:p-4"
+          className="border-t border-white/[0.06] p-3 sm:p-4 pb-safe"
         >
           {/* Listening indicator */}
           <AnimatePresence>

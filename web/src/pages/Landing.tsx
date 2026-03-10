@@ -56,7 +56,7 @@ export default function LandingPage() {
         transition={{ duration: 0.6 }}
         className="fixed top-0 left-0 right-0 z-50 nav-blur"
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 max-w-7xl mx-auto">
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="relative">
               <Zap className="text-synapse-400 transition-transform group-hover:scale-110" size={22} />
@@ -78,7 +78,7 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* ── Hero ──────────────────────────────────────── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-28 sm:pt-36 pb-20 sm:pb-32 text-center">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-36 pb-16 sm:pb-32 text-center">
         <FadeIn delay={0.1}>
           <div className="badge-synapse mb-6 sm:mb-8 mx-auto">
             <Sparkles size={12} />
@@ -320,7 +320,7 @@ export default function LandingPage() {
                   Architecture
                 </div>
                 <div className="space-y-2 text-gray-400">
-                  <p className="text-xs sm:text-sm break-all sm:break-normal"><span className="text-synapse-400">Browser</span> {'->'}  Supabase Realtime  {'->'}  <span className="text-emerald-400">Your Machine</span></p>
+                  <p className="text-xs sm:text-sm break-words"><span className="text-synapse-400">Browser</span> {'→'} Supabase Realtime {'→'} <span className="text-emerald-400">Your Machine</span></p>
                   <p className="text-gray-600 text-xs pt-2">End-to-end encrypted relay. No prompt storage.</p>
                   <div className="border-t border-white/5 pt-3 mt-3 space-y-1">
                     <p className="text-xs text-gray-600">{'// your prompt never touches our servers'}</p>
@@ -347,7 +347,7 @@ export default function LandingPage() {
         </FadeIn>
 
         <FadeIn delay={0.2}>
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto px-1 sm:px-0">
             {/* Pro Plan */}
             <motion.div
               whileHover={{ y: -4 }}

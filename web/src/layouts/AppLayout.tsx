@@ -121,7 +121,7 @@ export default function AppLayout() {
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="fixed top-0 left-0 bottom-0 w-72 border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
+                className="fixed top-0 left-0 bottom-0 w-[280px] max-w-[85vw] border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
               >
                 <SidebarContent />
               </motion.aside>
@@ -132,7 +132,7 @@ export default function AppLayout() {
         {/* Main content */}
         <main className="flex-1 overflow-auto flex flex-col">
           {/* Mobile top bar */}
-          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30">
+          <div className="md:hidden flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30" style={{ paddingTop: 'max(0.625rem, env(safe-area-inset-top))' }}>
             <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-white/[0.06] text-gray-400 transition-colors">
               <Menu size={20} />
             </button>
