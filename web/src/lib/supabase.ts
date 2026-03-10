@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { persistentStorage, restoreDeviceId } from './persistentStorage'
 
 // Support both VITE_ prefix (local dev) and NEXT_PUBLIC_ prefix (Supabase Vercel integration)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -12,10 +13,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     storageKey: 'synapse-auth',
+    storage: persistentStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
 })
+
+// Kick off device ID restoration (also recovers session from IndexedDB)
+restoreDeviceId()
 
 // ── Types from our DB schema ───────────────────────────────────
 
