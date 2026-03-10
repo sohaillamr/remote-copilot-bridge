@@ -3,11 +3,53 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Copy, Check } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 
 interface Props {
   content: string
   className?: string
+}
+
+// ── Content pre-processing ─────────────────────────────────
+// Even after agent-side cleaning, some noise can slip through
+// (e.g. from streamed lines that bypass the final cleaner).
+
+const ANSI_RE = /\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07/g
+const SPINNER_RE = /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●○◐◑◒◓◔◕]/g
+const SEPARATOR_RE = /^[\s─━═—_\-~]{5,}$/
+const MULTI_BLANK_RE = /\n{3,}/g
+
+function preprocessContent(raw: string): string {
+  let text = raw
+    .replace(ANSI_RE, '')        // strip any leftover ANSI
+    .replace(SPINNER_RE, '')     // strip spinner chars
+
+  // Remove pure separator lines
+  const lines = text.split('\n')
+  const cleaned = lines.filter(l => !SEPARATOR_RE.test(l.trim()))
+  text = cleaned.join('\n')
+
+  // Collapse 3+ blank lines → 1
+  text = text.replace(MULTI_BLANK_RE, '\n\n')
+
+  return text.trim()
+}
+
+// ── Detect if content is markdown ──────────────────────────
+
+function looksLikeMarkdown(text: string): boolean {
+  // Quick patterns that indicate the text contains markdown formatting
+  const markers = [
+    /^#{1,6}\s/m,                 // headings
+    /\*\*[^*]+\*\*/,              // bold
+    /```[\s\S]*?```/,             // fenced code blocks
+    /^\s*[-*+]\s/m,               // unordered lists
+    /^\s*\d+\.\s/m,               // ordered lists
+    /\[.+?\]\(.+?\)/,             // links
+    /^\s*>\s/m,                   // blockquotes
+    /\|.+\|.+\|/,                // tables
+  ]
+  return markers.some(re => re.test(text))
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
@@ -50,19 +92,18 @@ function CodeBlock({ language, children }: { language: string; children: string 
 }
 
 export default function MarkdownMessage({ content, className = '' }: Props) {
-  // Detect if content looks like plain CLI output (no markdown markers)
-  const looksLikeMarkdown = /[#*`\[\]|>-]{2,}|```|^\s*[-*]\s/m.test(content)
+  const processed = useMemo(() => preprocessContent(content), [content])
 
-  if (!looksLikeMarkdown) {
+  if (!looksLikeMarkdown(processed)) {
     return (
       <pre className={`whitespace-pre-wrap font-mono text-xs sm:text-sm break-words text-gray-300 leading-relaxed ${className}`}>
-        {content}
+        {processed}
       </pre>
     )
   }
 
   return (
-    <div className={`markdown-body text-xs sm:text-sm text-gray-300 leading-relaxed ${className}`}>
+    <div className={`markdown-body text-xs sm:text-sm text-gray-300 leading-relaxed space-y-1 ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -123,7 +164,7 @@ export default function MarkdownMessage({ content, className = '' }: Props) {
           },
         }}
       >
-        {content}
+        {processed}
       </ReactMarkdown>
     </div>
   )

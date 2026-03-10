@@ -19,18 +19,95 @@ import functools
 import json
 import os
 import platform
+import re
 import time
 import uuid
 from typing import Any, Callable, Coroutine
 
 from rich.console import Console
 
-from synapse_agent.bridge import ToolBridge
+from synapse_agent.bridge import ToolBridge, _strip_ansi
 from synapse_agent.config import load_config, save_config, get_supabase_config
 from synapse_agent.models import ToolResult
 from synapse_agent.tools import discover_all_tools, TOOL_MODELS
 
 console = Console()
+
+
+# ── Output post-processing ──────────────────────────────────
+# Copilot CLI (and similar tools) produce extremely verbose output:
+#   - Tool-call banners, file trees, thinking indicators
+#   - Repeated section headers
+#   - Full file contents when only a summary was asked
+# This cleaner extracts the meaningful answer.
+
+# Patterns that mark the start of copilot "tool use" noise
+_TOOL_BANNER_RE = re.compile(
+    r'^\s*(?:'
+    r'(?:Running|Calling|Executing|Using)\s+(?:tool|command|action)|'
+    r'Tool\s*(?:call|result|output|response)|'
+    r'(?:Command|Result|Output)\s*:?\s*$|'
+    r'─{3,}|━{3,}|═{3,}|—{3,}|_{5,}'
+    r')',
+    re.IGNORECASE,
+)
+
+# Lines that are purely decorative / noise
+_JUNK_LINE_RE = re.compile(
+    r'^\s*(?:'
+    r'[\u2500-\u257F\u2580-\u259F]{3,}|'          # box-drawing lines
+    r'[=\-~]{5,}|'                                 # separator lines
+    r'[\s⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●○◐◑◒◓◔◕]+$|'             # spinners
+    r'\x1b|'                                        # leftover escapes
+    r'Thinking\.{0,3}$|Working\.{0,3}$'
+    r')',
+    re.IGNORECASE,
+)
+
+
+def _clean_tool_output(raw: str, tool: str = "") -> str:
+    """
+    Clean CLI tool output for human consumption.
+
+    - Strips ANSI escapes
+    - Removes tool-call banners, separator lines, spinners
+    - Collapses 3+ consecutive blank lines → 1
+    - Trims leading/trailing whitespace
+    """
+    text = _strip_ansi(raw)
+
+    lines = text.splitlines()
+    cleaned: list[str] = []
+    blank_count = 0
+
+    for line in lines:
+        stripped = line.rstrip()
+
+        # Skip junk
+        if _JUNK_LINE_RE.match(stripped):
+            blank_count += 1
+            continue
+
+        # Skip tool banners
+        if _TOOL_BANNER_RE.match(stripped):
+            continue
+
+        if not stripped:
+            blank_count += 1
+            if blank_count <= 2:
+                cleaned.append('')
+            continue
+
+        blank_count = 0
+        cleaned.append(stripped)
+
+    # Trim leading/trailing empty lines
+    while cleaned and not cleaned[0].strip():
+        cleaned.pop(0)
+    while cleaned and not cleaned[-1].strip():
+        cleaned.pop()
+
+    return '\n'.join(cleaned)
 
 
 def _sync_wrapper(async_fn: Callable[..., Coroutine]) -> Callable:
@@ -240,6 +317,11 @@ class SynapseRelay:
             on_line=on_line,
             model=model,
         )
+
+        # Clean the output — strip CLI noise, spinners, banners
+        result.stdout = _clean_tool_output(result.stdout, tool)
+        if result.stderr:
+            result.stderr = _clean_tool_output(result.stderr, tool)
 
         # Send final result event
         if self._channel:

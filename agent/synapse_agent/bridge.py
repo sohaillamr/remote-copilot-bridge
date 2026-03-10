@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import os
 import platform
+import re
 import subprocess
 import shutil
 import time
@@ -17,6 +18,42 @@ from typing import Callable, Awaitable
 
 from synapse_agent.models import ToolResult
 from synapse_agent.tools import get_tool_command, find_tool_binary
+
+# ── Output sanitization ─────────────────────────────────────
+
+# ANSI escape codes (colours, cursor movement, etc.)
+_ANSI_RE = re.compile(r'\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[()][AB012]|\x1b\[\?[0-9;]*[hl]')
+
+# Braille spinner characters used by CLI tools (ora / yocto-spinner)
+_SPINNER_CHARS = set('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⣾⣽⣻⢿⡿⣟⣯⣷●○◐◑◒◓◔◕')
+
+# Lines that are purely progress / noise
+_NOISE_PATTERNS = [
+    re.compile(r'^\s*$'),                          # blank
+    re.compile(r'^[\s⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⣾⣽⣻⢿⡿⣟⣯⣷●○◐◑◒◓◔◕\-\\/|]+$'),  # pure spinners/dashes
+    re.compile(r'^\s*(Thinking|Working|Processing|Loading|Searching|Reading|Analyzing)\s*[\.…]*\s*$', re.I),
+    re.compile(r'^\s*\d+%\s*[\|█▓▒░─━]*'),        # progress bars
+    re.compile(r'^\x1b'),                           # leftover escape starts
+]
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from a string."""
+    return _ANSI_RE.sub('', text)
+
+
+def _is_noise_line(line: str) -> bool:
+    """Return True if the line is spinner/progress noise that should be hidden."""
+    stripped = line.strip()
+    if not stripped:
+        return True
+    # Pure spinner characters
+    if all(c in _SPINNER_CHARS or c == ' ' for c in stripped):
+        return True
+    for pat in _NOISE_PATTERNS:
+        if pat.match(stripped):
+            return True
+    return False
 
 # Dangerous shell command patterns — blocked by default
 BLOCKED_COMMANDS: list[str] = [
@@ -120,11 +157,13 @@ class ToolBridge:
                 nonlocal lines_streamed
                 async for raw_line in stream:
                     decoded = raw_line.decode("utf-8", errors="replace").rstrip()
-                    accumulator.append(decoded)
-                    if on_line and decoded:
+                    # Strip ANSI escape codes so output is clean
+                    cleaned = _strip_ansi(decoded)
+                    accumulator.append(cleaned)
+                    if on_line and cleaned and not _is_noise_line(cleaned):
                         lines_streamed += 1
                         try:
-                            await on_line(prefix + decoded)
+                            await on_line(prefix + cleaned)
                         except Exception:
                             pass  # Don't let broadcast errors kill execution
 
