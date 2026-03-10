@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import platform
 import subprocess
+import shutil
 import time
 from typing import Callable, Awaitable
 
@@ -23,6 +25,25 @@ BLOCKED_COMMANDS: list[str] = [
     "net user", "net localgroup", "reg delete",
     "powershell -enc", "powershell -e ",
 ]
+
+
+def _build_env() -> dict[str, str]:
+    """
+    Build the environment for subprocesses.
+
+    On Windows, ensure the SHELL variable points to powershell.exe (v5.1)
+    instead of pwsh.exe (v7+) which may not be installed.  Many CLI tools
+    (e.g. GitHub Copilot) use SHELL to decide which shell to invoke for
+    command execution.
+    """
+    env = os.environ.copy()
+    if platform.system().lower() == "windows":
+        # Prefer powershell.exe (always installed), fall back to cmd.exe
+        ps = shutil.which("powershell.exe") or r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        env.setdefault("SHELL", ps)
+        # Also set COMSPEC to cmd.exe as a fallback for tools that use it
+        env.setdefault("COMSPEC", shutil.which("cmd.exe") or r"C:\Windows\System32\cmd.exe")
+    return env
 
 
 class ToolBridge:
@@ -80,6 +101,7 @@ class ToolBridge:
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
+                    env=_build_env(),
                 )
             else:
                 self._current_process = await asyncio.create_subprocess_shell(
@@ -87,6 +109,7 @@ class ToolBridge:
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
+                    env=_build_env(),
                 )
 
             async def read_stream(

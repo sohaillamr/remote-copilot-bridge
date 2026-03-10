@@ -8,7 +8,14 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   || ''
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    storageKey: 'synapse-auth',
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+})
 
 // ── Types from our DB schema ───────────────────────────────────
 

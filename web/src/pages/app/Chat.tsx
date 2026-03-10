@@ -63,6 +63,7 @@ export default function Chat() {
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const isSendingRef = useRef(false)
 
   // Build tools list: dynamic from agent + fallback
   const toolsList = detectedTools.length > 0
@@ -116,8 +117,12 @@ export default function Chat() {
   // Load history when conversationId changes
   useEffect(() => {
     if (conversationId) {
-      loadHistory(conversationId)
-      clearOutput()
+      // If we're in the middle of sending the first message,
+      // don't clear output — the prompt is already in-flight
+      if (!isSendingRef.current) {
+        loadHistory(conversationId)
+        clearOutput()
+      }
     } else {
       setMessages([])
       clearOutput()
@@ -283,39 +288,51 @@ export default function Chat() {
     setInput('')
 
     let convId = conversationId
-    if (user) {
+
+    // Create conversation in DB if needed (new chat)
+    if (user && !convId) {
       try {
-        if (!convId) {
-          const { data } = await supabase
-            .from('conversations')
-            .insert({ user_id: user.id, title: prompt.slice(0, 100), tool: selectedTool })
-            .select()
-            .single()
-          convId = data?.id
-          if (convId) {
-            navigate(`/app/chat/${convId}`, { replace: true })
-            loadConversations()
-          }
-        }
-        if (convId) {
-          await supabase.from('messages').insert({
-            conversation_id: convId,
-            role: 'user',
-            content: prompt,
-          })
-          // Update conversation timestamp to re-order sidebar
-          if (conversationId) {
-            supabase.from('conversations')
-              .update({ updated_at: new Date().toISOString() })
-              .eq('id', convId)
-              .then(() => loadConversations())
-          }
-        }
+        const { data } = await supabase
+          .from('conversations')
+          .insert({ user_id: user.id, title: prompt.slice(0, 100), tool: selectedTool })
+          .select()
+          .single()
+        convId = data?.id
       } catch (err) {
-        console.error('DB error:', err)
+        console.error('DB error creating conversation:', err)
       }
     }
-    sendPrompt(selectedTool, prompt, convId || crypto.randomUUID(), undefined, selectedModel || undefined)
+
+    const finalConvId = convId || crypto.randomUUID()
+
+    // SEND PROMPT FIRST — before any navigation that could disrupt state
+    isSendingRef.current = true
+    await sendPrompt(selectedTool, prompt, finalConvId, undefined, selectedModel || undefined)
+    isSendingRef.current = false
+
+    // NOW navigate (after prompt is sent) and persist to DB in background
+    if (user && convId) {
+      if (!conversationId) {
+        // New conversation — navigate to its URL
+        navigate(`/app/chat/${convId}`, { replace: true })
+        loadConversations()
+      }
+      // Persist user message to DB (fire-and-forget)
+      supabase.from('messages').insert({
+        conversation_id: convId,
+        role: 'user',
+        content: prompt,
+      }).then(({ error }) => {
+        if (error) console.error('Failed to save user message:', error)
+      })
+      // Update conversation timestamp for sidebar ordering
+      if (conversationId) {
+        supabase.from('conversations')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', convId)
+          .then(() => loadConversations())
+      }
+    }
   }, [input, isConnected, isWaiting, user, conversationId, selectedTool, selectedModel, sendPrompt, isListening, stopListening, clearTranscript, navigate])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
