@@ -13,6 +13,7 @@ import platform
 import re
 import subprocess
 import shutil
+import tempfile
 import time
 from typing import Callable, Awaitable
 
@@ -72,15 +73,61 @@ def _build_env() -> dict[str, str]:
     instead of pwsh.exe (v7+) which may not be installed.  Many CLI tools
     (e.g. GitHub Copilot) use SHELL to decide which shell to invoke for
     command execution.
+
+    Also creates a `pwsh.cmd` shim if PowerShell Core is not installed,
+    so that CLI tools that hard-check for `pwsh.exe` in PATH can still
+    run shell commands via Windows PowerShell 5.1.
     """
     env = os.environ.copy()
     if platform.system().lower() == "windows":
         # Prefer powershell.exe (always installed), fall back to cmd.exe
         ps = shutil.which("powershell.exe") or r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-        env.setdefault("SHELL", ps)
+        # Force-set SHELL — setdefault won't override a stale/wrong value
+        env["SHELL"] = ps
         # Also set COMSPEC to cmd.exe as a fallback for tools that use it
         env.setdefault("COMSPEC", shutil.which("cmd.exe") or r"C:\Windows\System32\cmd.exe")
+
+        # If pwsh.exe (PowerShell Core 7+) is not installed, create a shim
+        # so that CLI tools (e.g. GitHub Copilot) that directly invoke
+        # `pwsh.exe` can still work via Windows PowerShell 5.1.
+        if not shutil.which("pwsh") and not shutil.which("pwsh.exe"):
+            shim_dir = _ensure_pwsh_shim(ps)
+            if shim_dir:
+                env["PATH"] = shim_dir + os.pathsep + env.get("PATH", "")
     return env
+
+
+# Cache the shim directory so we only create it once per process
+_pwsh_shim_dir: str | None = None
+
+
+def _ensure_pwsh_shim(powershell_path: str) -> str | None:
+    """
+    Create a pwsh.cmd batch shim that delegates to powershell.exe.
+
+    Some CLI tools (GitHub Copilot, Claude CLI) hard-check for `pwsh.exe`
+    and fail if it's not found, even though Windows PowerShell 5.1 can
+    handle all the commands they generate. This shim lets them find
+    `pwsh` in PATH and transparently use powershell.exe instead.
+    """
+    global _pwsh_shim_dir
+    if _pwsh_shim_dir and os.path.isdir(_pwsh_shim_dir):
+        return _pwsh_shim_dir
+
+    try:
+        shim_dir = os.path.join(tempfile.gettempdir(), "synapse-shims")
+        os.makedirs(shim_dir, exist_ok=True)
+
+        # Create pwsh.cmd — Windows looks up .cmd before .exe in PATH
+        shim_path = os.path.join(shim_dir, "pwsh.cmd")
+        if not os.path.exists(shim_path):
+            with open(shim_path, "w") as f:
+                f.write(f'@"{powershell_path}" %*\n')
+
+        _pwsh_shim_dir = shim_dir
+        return shim_dir
+    except Exception:
+        return None
 
 
 class ToolBridge:
