@@ -305,19 +305,19 @@ export default function Chat() {
 
     const finalConvId = convId || crypto.randomUUID()
 
-    // SEND PROMPT FIRST — before any navigation that could disrupt state
-    isSendingRef.current = true
-    await sendPrompt(selectedTool, prompt, finalConvId, undefined, selectedModel || undefined)
-    isSendingRef.current = false
+    // Navigate FIRST (if new conversation) so the URL updates without remounting
+    if (user && convId && !conversationId) {
+      isSendingRef.current = true
+      navigate(`/app/chat/${convId}`, { replace: true })
+      loadConversations()
+    }
 
-    // NOW navigate (after prompt is sent) and persist to DB in background
+    // Send prompt (fire-and-forget — don't await so UI stays responsive)
+    sendPrompt(selectedTool, prompt, finalConvId, undefined, selectedModel || undefined)
+      .finally(() => { isSendingRef.current = false })
+
+    // Persist to DB in background
     if (user && convId) {
-      if (!conversationId) {
-        // New conversation — navigate to its URL
-        navigate(`/app/chat/${convId}`, { replace: true })
-        loadConversations()
-      }
-      // Persist user message to DB (fire-and-forget)
       supabase.from('messages').insert({
         conversation_id: convId,
         role: 'user',
@@ -325,7 +325,6 @@ export default function Chat() {
       }).then(({ error }) => {
         if (error) console.error('Failed to save user message:', error)
       })
-      // Update conversation timestamp for sidebar ordering
       if (conversationId) {
         supabase.from('conversations')
           .update({ updated_at: new Date().toISOString() })

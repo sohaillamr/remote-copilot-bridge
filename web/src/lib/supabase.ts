@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { persistentStorage, restoreDeviceId } from './persistentStorage'
+import { persistentStorage, restoreSessionFromIDB, restoreDeviceId } from './persistentStorage'
 
 // Support both VITE_ prefix (local dev) and NEXT_PUBLIC_ prefix (Supabase Vercel integration)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -19,7 +19,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
-// Kick off device ID restoration (also recovers session from IndexedDB)
+// Recover auth session from IndexedDB into localStorage (before Supabase reads it)
+// This handles the case where mobile Safari cleared localStorage
+restoreSessionFromIDB()
+
+// Also restore device fingerprint
 restoreDeviceId()
 
 // ── Types from our DB schema ───────────────────────────────────

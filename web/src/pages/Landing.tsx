@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap, Terminal, Globe, Shield, ArrowRight, Check, Sparkles,
-  Lock, Mic, GraduationCap, Copy, CheckCheck, Github,
-  Smartphone, Monitor, Wifi,
+  Lock, Mic, Copy, CheckCheck, Github,
+  Smartphone, Monitor, Wifi, GraduationCap,
   Cpu, Radio, ScanSearch, MonitorSmartphone, Code2, FolderLock,
 } from 'lucide-react'
 import GridBackground from '../components/GridBackground'
@@ -250,18 +250,18 @@ function PricingSection() {
       </FadeIn>
 
       <FadeIn delay={0.15}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto px-1 sm:px-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 max-w-3xl mx-auto px-2 sm:px-0">
           {/* Pro Plan */}
           <motion.div
             whileHover={{ y: -4 }}
             transition={{ duration: 0.3 }}
             className="relative group"
           >
-            <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-b from-synapse-500/30 via-synapse-500/10 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative glass-card rounded-3xl p-6 sm:p-8">
-              <div className="text-center mb-6 sm:mb-8">
-                <div className="badge-synapse mb-4 mx-auto">Most Popular</div>
-                <h3 className="text-xl sm:text-2xl font-bold mb-1">Synapse Pro</h3>
+            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-b from-synapse-500/30 via-synapse-500/10 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative glass-card rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+              <div className="text-center mb-5 sm:mb-8">
+                <div className="badge-synapse mb-3 sm:mb-4 mx-auto">Most Popular</div>
+                <h3 className="text-lg sm:text-2xl font-bold mb-1">Synapse Pro</h3>
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={yearly ? 'y' : 'm'}
@@ -321,14 +321,14 @@ function PricingSection() {
             transition={{ duration: 0.3 }}
             className="relative group"
           >
-            <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-b from-purple-500/20 via-transparent to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-500" />
-            <div className="relative glass-card rounded-3xl p-6 sm:p-8">
-              <div className="text-center mb-6 sm:mb-8">
-                <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/10 mb-4">
+            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-b from-purple-500/20 via-transparent to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-500" />
+            <div className="relative glass-card rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+              <div className="text-center mb-5 sm:mb-8">
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/10 mb-3 sm:mb-4">
                   <GraduationCap size={12} />
                   Students
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold mb-1">Synapse Student</h3>
+                <h3 className="text-lg sm:text-2xl font-bold mb-1">Synapse Student</h3>
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={yearly ? 'y' : 'm'}
@@ -634,10 +634,7 @@ export default function LandingPage() {
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <FadeIn>
           <div className="text-center mb-10 sm:mb-14">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-synapse-500/10 border border-synapse-500/15 mb-6">
-              <GraduationCap size={14} className="text-synapse-400" />
-              <span className="text-xs font-medium text-synapse-300">Proudly built at SAMS — Used by CS students for graduation projects</span>
-            </div>
+            <p className="text-sm text-synapse-400 uppercase tracking-widest mb-3">Testimonials</p>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight">
               Developers love it
             </h2>

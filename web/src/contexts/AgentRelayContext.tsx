@@ -186,6 +186,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
     channel.on('broadcast', { event: 'result' }, ({ payload }) => {
       setLastResult(payload as ToolResult)
       setIsWaiting(false)
+      if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
     })
 
     channel.on('broadcast', { event: 'error' }, ({ payload }) => {
@@ -260,6 +261,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
       channel.unsubscribe()
       channelRef.current = null
       if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current)
+      if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
     }
   }, [user, addToast])
 
@@ -276,6 +278,9 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
 
   // ── Actions ──────────────────────────────────────────────
 
+  // Safety timeout ref — clears isWaiting if result never arrives
+  const waitingTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+
   const sendPrompt = useCallback(async (
     tool: string, text: string, conversationId: string, timeout?: number, model?: string
   ) => {
@@ -286,6 +291,19 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
     setOutputLines([])
     setLastResult(null)
     setIsWaiting(true)
+
+    // Safety timeout: if no result in 3 minutes, clear waiting state
+    if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
+    waitingTimeoutRef.current = setTimeout(() => {
+      setIsWaiting(prev => {
+        if (prev) {
+          console.warn('sendPrompt safety timeout — clearing isWaiting')
+          addToast('Response timed out. The agent may still be processing.', 'warning')
+        }
+        return false
+      })
+    }, 180_000)
+
     try {
       const status = await channelRef.current.send({
         type: 'broadcast', event: 'prompt',
@@ -295,11 +313,13 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
         console.error('Broadcast send status:', status)
         addToast(`Broadcast failed: ${status}`, 'error')
         setIsWaiting(false)
+        if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
       }
     } catch (err) {
       console.error('sendPrompt error:', err)
       addToast('Failed to send prompt', 'error')
       setIsWaiting(false)
+      if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
     }
   }, [addToast])
 

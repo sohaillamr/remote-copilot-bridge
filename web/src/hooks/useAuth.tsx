@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase, type Profile } from '../lib/supabase'
+import { restoreSessionFromIDB } from '../lib/persistentStorage'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -45,12 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })()
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      setIsLoading(false)
+    // Wait for IndexedDB session recovery (in case localStorage was wiped on mobile)
+    // then get the session
+    restoreSessionFromIDB().then(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session)
+        setUser(session?.user ?? null)
+        if (session?.user) fetchProfile(session.user.id)
+        setIsLoading(false)
+      })
     })
 
     // Listen for auth changes

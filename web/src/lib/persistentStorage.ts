@@ -144,29 +144,41 @@ export async function restoreDeviceId(): Promise<string> {
 
 // ── Hybrid storage for Supabase ────────────────────────────
 
-export const persistentStorage = {
-  getItem: (key: string): string | null => {
-    // Try localStorage first (synchronous, fast)
-    const fromLS = localStorage.getItem(key)
-    if (fromLS) return fromLS
+/**
+ * On app startup, recover ALL auth keys from IndexedDB into localStorage
+ * before Supabase ever tries to read them. This runs once synchronously-ish
+ * at module load time via restoreSessionFromIDB().
+ */
+let _idbRecoveryDone = false
+let _idbRecoveryPromise: Promise<void> | null = null
 
-    // If localStorage is empty, schedule an async IndexedDB recovery
-    // but return null for now (Supabase will call getSession later)
-    idbGet(key).then((val) => {
-      if (val && !localStorage.getItem(key)) {
-        // Restore to localStorage for future sync reads
-        localStorage.setItem(key, val)
-        // Force a page reload to pick up the restored session
-        // (only once per recovery)
-        const recoveryKey = `${key}_recovered`
-        if (!sessionStorage.getItem(recoveryKey)) {
-          sessionStorage.setItem(recoveryKey, '1')
-          window.location.reload()
+export function restoreSessionFromIDB(): Promise<void> {
+  if (_idbRecoveryDone) return Promise.resolve()
+  if (_idbRecoveryPromise) return _idbRecoveryPromise
+
+  _idbRecoveryPromise = (async () => {
+    try {
+      const authKey = 'synapse-auth'
+      const fromLS = localStorage.getItem(authKey)
+      if (!fromLS) {
+        const fromIDB = await idbGet(authKey)
+        if (fromIDB) {
+          localStorage.setItem(authKey, fromIDB)
         }
       }
-    })
+    } catch {
+      // Silently fail
+    } finally {
+      _idbRecoveryDone = true
+    }
+  })()
 
-    return null
+  return _idbRecoveryPromise
+}
+
+export const persistentStorage = {
+  getItem: (key: string): string | null => {
+    return localStorage.getItem(key)
   },
 
   setItem: (key: string, value: string): void => {

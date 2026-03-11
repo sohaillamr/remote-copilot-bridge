@@ -54,10 +54,18 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function AnimatedRoutes() {
   const location = useLocation()
 
+  // Use a stable key for nested routes — only animate between top-level sections
+  // so that navigating /app/chat → /app/chat/:id does NOT unmount/remount Chat
+  const routeKey = location.pathname.startsWith('/app')
+    ? '/app'
+    : location.pathname.startsWith('/admin')
+      ? '/admin'
+      : location.pathname
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={location.pathname}
+        key={routeKey}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
