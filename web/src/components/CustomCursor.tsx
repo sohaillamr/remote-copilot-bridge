@@ -1,26 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
 
+/** Reliable touch-device detection using multiple signals. */
+function isTouchDevice(): boolean {
+  if (typeof window === 'undefined') return true
+  if (navigator.maxTouchPoints > 0) return true
+  if ('ontouchstart' in window) return true
+  if (window.matchMedia('(pointer: coarse)').matches) return true
+  if (window.matchMedia('(any-pointer: coarse)').matches) return true
+  return false
+}
+
 export default function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null)
   const ringRef = useRef<HTMLDivElement>(null)
   const [hasMouse, setHasMouse] = useState(() => {
-    // Default to true on desktop-like environments; on pure touch devices the
-    // matchMedia check below will flip it to false before the first paint.
     if (typeof window === 'undefined') return false
-    return window.matchMedia('(pointer: fine)').matches
+    // Touch device → never show custom cursor
+    if (isTouchDevice()) return false
+    // Must have a fine pointer that supports hover (real mouse/trackpad)
+    return window.matchMedia('(pointer: fine) and (hover: hover)').matches
   })
 
   useEffect(() => {
-    // Listen for the first real mouse move to confirm a mouse is present.
-    // This handles hybrid devices (touch laptops) correctly.
-    const onMouse = () => setHasMouse(true)
+    // Safety net: if a touch event ever fires, disable the custom cursor.
+    // This catches hybrid devices where a user switches to touch.
     const onTouch = () => setHasMouse(false)
-    window.addEventListener('mousemove', onMouse, { once: true })
     window.addEventListener('touchstart', onTouch, { once: true })
-    return () => {
-      window.removeEventListener('mousemove', onMouse)
-      window.removeEventListener('touchstart', onTouch)
-    }
+    return () => window.removeEventListener('touchstart', onTouch)
   }, [])
 
   useEffect(() => {

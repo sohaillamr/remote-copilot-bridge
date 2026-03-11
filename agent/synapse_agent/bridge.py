@@ -35,6 +35,10 @@ _NOISE_PATTERNS = [
     re.compile(r'^\s*(Thinking|Working|Processing|Loading|Searching|Reading|Analyzing)\s*[\.…]*\s*$', re.I),
     re.compile(r'^\s*\d+%\s*[\|█▓▒░─━]*'),        # progress bars
     re.compile(r'^\x1b'),                           # leftover escape starts
+    # pwsh.exe errors (tool tried to use PowerShell Core which isn't installed)
+    re.compile(r'.*(?:pwsh|powershell\s*core).*(?:not\s+found|not\s+recognized|ENOENT|cannot\s+find|is\s+not)', re.I),
+    re.compile(r'^Error:\s*spawn\s+pwsh', re.I),
+    re.compile(r".*'pwsh(?:\.exe)?'.*not\s+recognized", re.I),
 ]
 
 
@@ -103,12 +107,13 @@ _pwsh_shim_dir: str | None = None
 
 def _ensure_pwsh_shim(powershell_path: str) -> str | None:
     """
-    Create a pwsh.cmd batch shim that delegates to powershell.exe.
+    Create a pwsh.exe shim that IS powershell.exe, so CLI tools that
+    hard-check for `pwsh.exe` (via execFile, spawn, PATH lookup) find it.
 
-    Some CLI tools (GitHub Copilot, Claude CLI) hard-check for `pwsh.exe`
-    and fail if it's not found, even though Windows PowerShell 5.1 can
-    handle all the commands they generate. This shim lets them find
-    `pwsh` in PATH and transparently use powershell.exe instead.
+    Strategy (in order):
+    1. Copy powershell.exe → pwsh.exe  (real .exe, works everywhere)
+    2. Compile a tiny C# wrapper via csc.exe  (fallback)
+    3. Create pwsh.cmd + pwsh.bat text shims  (last resort)
     """
     global _pwsh_shim_dir
     if _pwsh_shim_dir and os.path.isdir(_pwsh_shim_dir):
@@ -118,16 +123,86 @@ def _ensure_pwsh_shim(powershell_path: str) -> str | None:
         shim_dir = os.path.join(tempfile.gettempdir(), "synapse-shims")
         os.makedirs(shim_dir, exist_ok=True)
 
-        # Create pwsh.cmd — Windows looks up .cmd before .exe in PATH
-        shim_path = os.path.join(shim_dir, "pwsh.cmd")
-        if not os.path.exists(shim_path):
-            with open(shim_path, "w") as f:
-                f.write(f'@"{powershell_path}" %*\n')
+        exe_path = os.path.join(shim_dir, "pwsh.exe")
+
+        # ── Strategy 1: copy powershell.exe as pwsh.exe ───────────────
+        if not os.path.isfile(exe_path):
+            try:
+                shutil.copy2(powershell_path, exe_path)
+            except Exception:
+                pass
+
+        # ── Strategy 2: compile a real exe via .NET csc.exe ────────────
+        if not os.path.isfile(exe_path):
+            _compile_pwsh_exe(shim_dir, powershell_path)
+
+        # ── Strategy 3: .cmd + .bat text shims (works with cmd /c) ───
+        if not os.path.isfile(exe_path):
+            for ext in ("cmd", "bat"):
+                shim = os.path.join(shim_dir, f"pwsh.{ext}")
+                if not os.path.isfile(shim):
+                    with open(shim, "w") as f:
+                        f.write(f'@"{powershell_path}" %*\n')
 
         _pwsh_shim_dir = shim_dir
         return shim_dir
     except Exception:
         return None
+
+
+def _compile_pwsh_exe(shim_dir: str, powershell_path: str) -> bool:
+    """
+    Compile a real pwsh.exe wrapper using .NET Framework's csc.exe.
+
+    Creates an actual Windows executable that transparently forwards
+    all arguments to powershell.exe, inheriting stdin/stdout/stderr.
+    """
+    exe_path = os.path.join(shim_dir, "pwsh.exe")
+    cs_path = os.path.join(shim_dir, "_pwsh.cs")
+
+    # Locate csc.exe from .NET Framework (always present on Windows)
+    csc = None
+    for fw in (
+        r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319",
+        r"C:\Windows\Microsoft.NET\Framework\v4.0.30319",
+    ):
+        candidate = os.path.join(fw, "csc.exe")
+        if os.path.isfile(candidate):
+            csc = candidate
+            break
+
+    if not csc:
+        return False
+
+    try:
+        ps = powershell_path.replace('\\', '\\\\')
+        source = (
+            'using System;using System.Diagnostics;'
+            'class P{static int Main(string[] a){'
+            'try{var p=Process.Start(new ProcessStartInfo{'
+            f'FileName=@"{powershell_path}",'
+            'Arguments=string.Join(" ",a),'
+            'UseShellExecute=false});'
+            'p.WaitForExit();return p.ExitCode;}'
+            'catch{return 1;}}}'
+        )
+        with open(cs_path, "w") as f:
+            f.write(source)
+
+        result = subprocess.run(
+            [csc, "/nologo", "/optimize+", f"/out:{exe_path}", cs_path],
+            capture_output=True,
+            timeout=30,
+        )
+
+        try:
+            os.remove(cs_path)
+        except OSError:
+            pass
+
+        return result.returncode == 0 and os.path.isfile(exe_path)
+    except Exception:
+        return False
 
 
 class ToolBridge:

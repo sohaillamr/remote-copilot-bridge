@@ -5,8 +5,7 @@
 @tailwind utilities;
 
 @layer base {
-  * { cursor: none !important; }
-  @media (pointer: coarse) { * { cursor: auto !important; } }
+  @media (pointer: fine) and (hover: hover) { * { cursor: none !important; } }
   body {
     @apply bg-[#09090b] text-white antialiased;
     font-feature-settings: 'cv11', 'ss01';
