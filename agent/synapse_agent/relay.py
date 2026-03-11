@@ -285,7 +285,7 @@ class SynapseRelay:
         tool = data.get("tool", self.config.get("default_tool", "copilot"))
         prompt = data.get("text", "")
         conversation_id = data.get("conversation_id", "")
-        timeout = data.get("timeout", self.config.get("default_timeout", 120))
+        timeout = data.get("timeout", self.config.get("default_timeout", 300))
 
         model = data.get("model")
 

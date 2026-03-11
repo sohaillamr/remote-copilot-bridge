@@ -64,6 +64,7 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isSendingRef = useRef(false)
+  const processedResultRef = useRef<unknown>(null)
 
   // Build tools list: dynamic from agent + fallback (memoized)
   const toolsList = useMemo(() =>
@@ -153,6 +154,9 @@ export default function Chat() {
   // Streaming → messages + persist assistant response to DB
   useEffect(() => {
     if (lastResult) {
+      // Prevent processing same result twice (deps like conversationId can retrigger)
+      if (lastResult === processedResultRef.current) return
+      processedResultRef.current = lastResult
       const content = lastResult.stdout || lastResult.stderr || 'No output.'
       const msgId = crypto.randomUUID()
       setMessages(prev => {
