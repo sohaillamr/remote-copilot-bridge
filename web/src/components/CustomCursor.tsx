@@ -1,14 +1,30 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null)
   const ringRef = useRef<HTMLDivElement>(null)
-
-  // Skip rendering entirely on touch devices
-  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  const [hasMouse, setHasMouse] = useState(() => {
+    // Default to true on desktop-like environments; on pure touch devices the
+    // matchMedia check below will flip it to false before the first paint.
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(pointer: fine)').matches
+  })
 
   useEffect(() => {
-    if (isTouchDevice) return
+    // Listen for the first real mouse move to confirm a mouse is present.
+    // This handles hybrid devices (touch laptops) correctly.
+    const onMouse = () => setHasMouse(true)
+    const onTouch = () => setHasMouse(false)
+    window.addEventListener('mousemove', onMouse, { once: true })
+    window.addEventListener('touchstart', onTouch, { once: true })
+    return () => {
+      window.removeEventListener('mousemove', onMouse)
+      window.removeEventListener('touchstart', onTouch)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasMouse) return
 
     const dot = dotRef.current
     const ring = ringRef.current
@@ -57,9 +73,9 @@ export default function CustomCursor() {
       cancelAnimationFrame(raf)
       document.body.style.cursor = ''
     }
-  }, [isTouchDevice])
+  }, [hasMouse])
 
-  if (isTouchDevice) return null
+  if (!hasMouse) return null
 
   return (
     <>
