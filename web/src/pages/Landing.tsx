@@ -459,7 +459,7 @@ export default function LandingPage() {
               </Link>
             </MagneticButton>
             <MagneticButton>
-              <a href="https://github.com/sohaillamr/remote-copilot-bridge" target="_blank" rel="noopener noreferrer" className="btn-secondary text-base px-8 py-3.5 w-full sm:w-auto text-center flex items-center justify-center gap-2">
+              <a href="https://github.com/sohaillamr/synapse-agent" target="_blank" rel="noopener noreferrer" className="btn-secondary text-base px-8 py-3.5 w-full sm:w-auto text-center flex items-center justify-center gap-2">
                 <Github size={16} />
                 View Source
               </a>
@@ -598,7 +598,7 @@ export default function LandingPage() {
                   Transparency = trust.
                 </p>
                 <a
-                  href="https://github.com/sohaillamr/remote-copilot-bridge"
+                  href="https://github.com/sohaillamr/synapse-agent"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-synapse-400 hover:text-synapse-300 underline underline-offset-2"
@@ -698,7 +698,7 @@ export default function LandingPage() {
             <span className="text-sm font-semibold text-gray-400">Synapse</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-gray-600">
-            <a href="https://github.com/sohaillamr/remote-copilot-bridge" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors flex items-center gap-1">
+            <a href="https://github.com/sohaillamr/synapse-agent" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors flex items-center gap-1">
               <Github size={12} /> GitHub
             </a>
             <span>•</span>
