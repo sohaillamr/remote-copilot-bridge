@@ -1,17 +1,24 @@
 ﻿import { useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Mail, ArrowLeft, Github, Loader2 } from 'lucide-react'
+import { Zap, Mail, ArrowLeft, Github, Loader2, Smartphone } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../lib/supabase'
+import { saveDeviceRefreshToken } from '../lib/persistentStorage'
 import GridBackground from '../components/GridBackground'
 import { FadeIn } from '../components/Animations'
 
 export default function LoginPage() {
   const { user, signInWithGithub, signInWithGoogle, signInWithEmail, isLoading: loading } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [showPairCode, setShowPairCode] = useState(false)
+  const [pairCode, setPairCode] = useState('')
+  const [pairingBusy, setPairingBusy] = useState(false)
+  const [pairError, setPairError] = useState('')
 
   if (user) return <Navigate to="/app" replace />
 
@@ -38,6 +45,53 @@ export default function LoginPage() {
       setError(e.message || 'Failed to send magic link')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handlePairCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    // Normalise: strip dashes/spaces, uppercase
+    const code = pairCode.replace(/[\s-]/g, '').toUpperCase()
+    if (code.length < 4) return
+    setPairingBusy(true)
+    setPairError('')
+    try {
+      const { data, error } = await supabase.rpc('claim_device_token', { p_token: code })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      if (!data?.access_token || !data?.refresh_token) throw new Error('Invalid token response')
+
+      // Establish session
+      const { error: setErr } = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      })
+      if (setErr) throw setErr
+
+      // Get this device's OWN independent tokens
+      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
+      if (refreshErr) {
+        await saveDeviceRefreshToken(data.refresh_token)
+      } else if (refreshed?.session?.refresh_token) {
+        await saveDeviceRefreshToken(refreshed.session.refresh_token)
+      }
+
+      // Update the stored tokens in device_tokens so next claim gets fresh ones
+      try {
+        const freshSession = refreshed?.session
+        if (freshSession) {
+          await supabase.from('device_tokens').update({
+            access_token: freshSession.access_token,
+            refresh_token: freshSession.refresh_token,
+          }).eq('token', code)
+        }
+      } catch { /* non-critical */ }
+
+      navigate('/app')
+    } catch (err: any) {
+      setPairError(err.message || 'Failed to pair')
+    } finally {
+      setPairingBusy(false)
     }
   }
 
@@ -182,6 +236,65 @@ export default function LoginPage() {
                   >
                     {error}
                   </motion.p>
+                )}
+
+                {/* Pairing Code section */}
+                <div className="relative flex items-center my-6">
+                  <div className="flex-grow border-t border-white/5" />
+                  <span className="px-3 text-xs text-gray-600 uppercase tracking-wider">or</span>
+                  <div className="flex-grow border-t border-white/5" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPairCode(!showPairCode)}
+                  className="w-full text-center text-sm text-gray-500 hover:text-synapse-400 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Smartphone size={15} />
+                  Have a pairing code?
+                </button>
+
+                {showPairCode && (
+                  <motion.form
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    onSubmit={handlePairCode}
+                    className="mt-4 space-y-3 overflow-hidden"
+                  >
+                    <p className="text-xs text-gray-500 text-center">
+                      Enter the code shown on your desktop's Settings page
+                    </p>
+                    <input
+                      type="text"
+                      value={pairCode}
+                      onChange={(e) => setPairCode(e.target.value.toUpperCase())}
+                      placeholder="ABC-DEF"
+                      maxLength={7}
+                      className="input w-full text-center text-lg font-mono tracking-[0.2em] uppercase"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="submit"
+                      disabled={pairingBusy || pairCode.replace(/[\s-]/g, '').length < 4}
+                      className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2"
+                    >
+                      {pairingBusy ? (
+                        <Loader2 className="animate-spin" size={16} />
+                      ) : (
+                        <Smartphone size={16} />
+                      )}
+                      Pair Device
+                    </button>
+                    {pairError && (
+                      <motion.p
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-red-400 text-xs text-center"
+                      >
+                        {pairError}
+                      </motion.p>
+                    )}
+                  </motion.form>
                 )}
               </>
             )}

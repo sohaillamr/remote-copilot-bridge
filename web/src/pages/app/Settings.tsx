@@ -5,6 +5,15 @@ import { supabase } from '../../lib/supabase'
 import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, GraduationCap, Smartphone } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
+/** Generate a short 6-char alphanumeric pairing code (no ambiguous chars). */
+function generatePairCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(6))
+  let code = ''
+  for (let i = 0; i < 6; i++) code += chars[bytes[i] % chars.length]
+  return code
+}
+
 export default function Settings() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
@@ -24,6 +33,8 @@ export default function Settings() {
   const isStudent = profile?.plan_tier === 'student'
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   const pairUrl = qrToken ? `${window.location.origin}/pair?token=${qrToken}` : ''
+  // Format code for display: ABC-DEF
+  const displayCode = qrToken ? `${qrToken.slice(0, 3)}-${qrToken.slice(3)}` : ''
 
   async function generateQrToken() {
     if (!user) return
@@ -33,13 +44,13 @@ export default function Settings() {
       const session = sessionData?.session
       if (!session) throw new Error('No active session')
 
-      const token = crypto.randomUUID()
+      const token = generatePairCode()
       const { error } = await supabase.from('device_tokens').insert({
         user_id: user.id,
         token,
         access_token: session.access_token,
         refresh_token: session.refresh_token || '',
-        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
       })
       if (error) throw error
       setQrToken(token)
@@ -48,7 +59,7 @@ export default function Settings() {
       setQrError(
         err.message?.includes('device_tokens')
           ? 'Run the SQL migration (002_features.sql) in Supabase first.'
-          : (err.message || 'Failed to generate QR code')
+          : (err.message || 'Failed to generate pairing code')
       )
     } finally {
       setQrLoading(false)
@@ -78,7 +89,6 @@ export default function Settings() {
       }).eq('id', user.id)
       setShowStudentModal(false)
       setEduEmail('')
-      // Refresh profile instead of full page reload
       if (user) refreshProfile(user.id)
     } catch (err: any) {
       setEduError(err.message || 'Failed to verify')
@@ -201,19 +211,13 @@ export default function Settings() {
               ) : (
                 <div className="space-y-2">
                   <button
-                    onClick={() => {
-                      setPaymentPlan('usd')
-                      setShowPaymentModal(true)
-                    }}
+                    onClick={() => { setPaymentPlan('usd'); setShowPaymentModal(true) }}
                     className="btn-primary w-full text-center block text-sm py-2.5"
                   >
                     Subscribe &mdash; {isStudent ? '$4' : '$5'}/month
                   </button>
                   <button
-                    onClick={() => {
-                      setPaymentPlan('egp')
-                      setShowPaymentModal(true)
-                    }}
+                    onClick={() => { setPaymentPlan('egp'); setShowPaymentModal(true) }}
                     className="w-full text-center text-[11px] text-gray-600 hover:text-synapse-400 transition-colors py-1"
                   >
                     Egypt? Pay with Paymob ({isStudent ? '200' : '250'} EGP)
@@ -242,7 +246,7 @@ export default function Settings() {
             <h2 className="font-semibold text-sm">Login on Another Device</h2>
           </div>
           <p className="text-sm text-gray-400 mb-5">
-            Scan a QR code from your phone or tablet to log in instantly — no email needed.
+            Scan the QR code or type the pairing code on your other device to log in instantly.
           </p>
           {isLocalhost && (
             <p className="text-xs text-amber-400/80 mb-3">
@@ -251,6 +255,7 @@ export default function Settings() {
           )}
           {qrToken ? (
             <div className="flex flex-col items-center gap-4">
+              {/* QR code */}
               <div className="bg-white p-3 rounded-xl">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pairUrl)}`}
@@ -260,9 +265,24 @@ export default function Settings() {
                   className="rounded"
                 />
               </div>
-              <p className="text-xs text-gray-500 text-center max-w-[250px]">
-                Scan with your camera app. Expires in 5 minutes, one-time use.
-              </p>
+
+              {/* Pairing code — big and prominent */}
+              <div className="w-full max-w-[280px]">
+                <p className="text-xs text-gray-500 text-center mb-2">Or enter this code on your device's login page:</p>
+                <div
+                  className="bg-white/[0.04] border border-white/10 rounded-xl px-6 py-4 text-center cursor-pointer hover:bg-white/[0.06] transition-colors"
+                  onClick={() => handleCopy(qrToken)}
+                  title="Click to copy"
+                >
+                  <span className="text-2xl font-mono font-bold tracking-[0.3em] text-synapse-400">
+                    {displayCode}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-600 text-center mt-2">
+                  {copied ? '✓ Copied!' : 'Tap code to copy • Valid for 24 hours'}
+                </p>
+              </div>
+
               <button
                 onClick={() => setQrToken(null)}
                 className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
@@ -277,13 +297,13 @@ export default function Settings() {
                 onClick={() => { setQrError(''); generateQrToken() }}
                 disabled={qrLoading}
                 className="btn-secondary w-full text-center text-sm py-2.5 flex items-center justify-center gap-2"
-            >
-              {qrLoading ? <Loader2 className="animate-spin" size={14} /> : <QrCode size={14} />}
-              Generate QR Code
-            </motion.button>
-            {qrError && (
-              <p className="text-xs text-red-400 text-center">{qrError}</p>
-            )}
+              >
+                {qrLoading ? <Loader2 className="animate-spin" size={14} /> : <QrCode size={14} />}
+                Generate Pairing Code
+              </motion.button>
+              {qrError && (
+                <p className="text-xs text-red-400 text-center">{qrError}</p>
+              )}
             </div>
           )}
         </div>
@@ -298,10 +318,8 @@ export default function Settings() {
           </div>
           <p className="text-sm text-gray-400 mb-5">
             Install the agent on any computer, then log in with your email.
-            That's it \u2014 no tokens or keys needed.
+            That's it — no tokens or keys needed.
           </p>
-
-          {/* Step 1 */}
           <div className="space-y-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -313,11 +331,7 @@ export default function Settings() {
                   <div className="terminal-dot bg-red-500/80" />
                   <div className="terminal-dot bg-yellow-500/80" />
                   <div className="terminal-dot bg-green-500/80" />
-                  <button
-                    onClick={() => handleCopy('pip install synapse-agent')}
-                    className="ml-auto text-gray-500 hover:text-gray-300 transition-colors p-1"
-                    title="Copy"
-                  >
+                  <button onClick={() => handleCopy('pip install synapse-agent')} className="ml-auto text-gray-500 hover:text-gray-300 transition-colors p-1" title="Copy">
                     {copied ? <Check size={12} /> : <Copy size={12} />}
                   </button>
                 </div>
@@ -326,8 +340,6 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-
-            {/* Step 2 */}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-5 h-5 rounded-full bg-synapse-500/20 text-synapse-400 text-xs flex items-center justify-center font-bold">2</span>
@@ -337,12 +349,10 @@ export default function Settings() {
                 <div className="terminal-body space-y-1">
                   <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse login</span></p>
                   <p className="text-gray-600">  Email: <span className="text-amber-400/70">{user?.email || 'you@example.com'}</span></p>
-                  <p className="text-gray-600">  <span className="text-emerald-400/70">\u2709 Magic link sent! Check your inbox.</span></p>
+                  <p className="text-gray-600">  <span className="text-emerald-400/70">✉ Magic link sent! Check your inbox.</span></p>
                 </div>
               </div>
             </div>
-
-            {/* Step 3 */}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-5 h-5 rounded-full bg-synapse-500/20 text-synapse-400 text-xs flex items-center justify-center font-bold">3</span>
@@ -351,13 +361,12 @@ export default function Settings() {
               <div className="terminal">
                 <div className="terminal-body space-y-1">
                   <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse start</span></p>
-                  <p className="text-gray-600">  <span className="text-cyan-400/70">\u26a1 Synapse Agent connected</span></p>
+                  <p className="text-gray-600">  <span className="text-cyan-400/70">⚡ Synapse Agent connected</span></p>
                   <p className="text-gray-600">  <span className="text-gray-500">Detected: copilot, claude, gemini</span></p>
                 </div>
               </div>
             </div>
           </div>
-
           <p className="text-xs text-gray-600 mt-4">The agent auto-detects AI CLI tools on your machine (Copilot, Claude, Gemini, Codex, Aider).</p>
         </div>
       </FadeIn>
@@ -378,24 +387,10 @@ export default function Settings() {
       <AnimatePresence>
         {showPaymentModal && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowPaymentModal(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPaymentModal(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="fixed inset-0 flex items-center justify-center z-50 p-4">
               <div className="glass-card rounded-2xl p-6 sm:p-8 max-w-sm w-full relative border border-white/[0.08]">
-                <button
-                  onClick={() => setShowPaymentModal(false)}
-                  className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
-                >
+                <button onClick={() => setShowPaymentModal(false)} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors">
                   <X size={16} />
                 </button>
                 <div className="text-center mb-6">
@@ -403,9 +398,7 @@ export default function Settings() {
                     <CreditCard className="text-synapse-400" size={22} />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
-                    {paymentPlan === 'usd'
-                      ? `Subscribe — ${isStudent ? '$4' : '$5'}/mo`
-                      : `Subscribe — ${isStudent ? '200' : '250'} EGP/mo`}
+                    {paymentPlan === 'usd' ? `Subscribe — ${isStudent ? '$4' : '$5'}/mo` : `Subscribe — ${isStudent ? '200' : '250'} EGP/mo`}
                   </h3>
                   <p className="text-xs text-gray-500">
                     Unlimited prompts, all AI tools, priority support
@@ -421,24 +414,13 @@ export default function Settings() {
                   ))}
                 </div>
                 <a
-                  href={
-                    isStudent
-                      ? (paymentPlan === 'usd'
-                          ? 'https://accept.paymob.com/synapse-student-usd'
-                          : 'https://accept.paymob.com/synapse-student-egp')
-                      : (paymentPlan === 'usd'
-                          ? 'https://accept.paymob.com/synapse-usd'
-                          : 'https://accept.paymob.com/synapse-egp')
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={isStudent ? (paymentPlan === 'usd' ? 'https://accept.paymob.com/synapse-student-usd' : 'https://accept.paymob.com/synapse-student-egp') : (paymentPlan === 'usd' ? 'https://accept.paymob.com/synapse-usd' : 'https://accept.paymob.com/synapse-egp')}
+                  target="_blank" rel="noopener noreferrer"
                   className="btn-primary w-full text-center block text-sm py-3 font-medium"
                 >
                   Continue to Payment
                 </a>
-                <p className="text-[10px] text-gray-700 text-center mt-3">
-                  Secure payment via Paymob. Cancel anytime.
-                </p>
+                <p className="text-[10px] text-gray-700 text-center mt-3">Secure payment via Paymob. Cancel anytime.</p>
               </div>
             </motion.div>
           </>
@@ -449,24 +431,10 @@ export default function Settings() {
       <AnimatePresence>
         {showStudentModal && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowStudentModal(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowStudentModal(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="fixed inset-0 flex items-center justify-center z-50 p-4">
               <div className="glass-card rounded-2xl p-6 sm:p-8 max-w-sm w-full relative border border-white/[0.08]">
-                <button
-                  onClick={() => setShowStudentModal(false)}
-                  className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
-                >
+                <button onClick={() => setShowStudentModal(false)} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors">
                   <X size={16} />
                 </button>
                 <div className="text-center mb-6">
@@ -479,23 +447,11 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-xs text-gray-600 block mb-1.5">Academic Email</label>
-                    <input
-                      type="email"
-                      value={eduEmail}
-                      onChange={e => setEduEmail(e.target.value)}
-                      placeholder="you@university.edu"
-                      className="input w-full"
-                    />
+                    <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@university.edu" className="input w-full" />
                     <p className="text-[10px] text-gray-600 mt-1">Accepted: .edu, .ac.uk, .edu.au, and other academic domains</p>
                   </div>
                   {eduError && (
-                    <motion.p
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-xs text-red-400"
-                    >
-                      {eduError}
-                    </motion.p>
+                    <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-400">{eduError}</motion.p>
                   )}
                   <motion.button
                     whileTap={{ scale: 0.97 }}
