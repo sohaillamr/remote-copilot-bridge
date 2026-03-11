@@ -39,6 +39,10 @@ _NOISE_PATTERNS = [
     re.compile(r'.*(?:pwsh|powershell\s*core).*(?:not\s+found|not\s+recognized|ENOENT|cannot\s+find|is\s+not)', re.I),
     re.compile(r'^Error:\s*spawn\s+pwsh', re.I),
     re.compile(r".*'pwsh(?:\.exe)?'.*not\s+recognized", re.I),
+    # V8/Node.js out-of-memory crash noise
+    re.compile(r'.*fatal.*(?:out\s+of\s+memory|allocation\s+failed|zone)', re.I),
+    re.compile(r'^<---.*$'),                      # V8 OOM header marker
+    re.compile(r'^FATAL\s+ERROR', re.I),
 ]
 
 
@@ -83,6 +87,14 @@ def _build_env() -> dict[str, str]:
     run shell commands via Windows PowerShell 5.1.
     """
     env = os.environ.copy()
+
+    # Give Node.js-based CLI tools (Copilot, Claude, Gemini) enough heap
+    # memory. Default V8 limit (~2GB) is too low for large prompts/projects
+    # and causes "fatal process out of memory: zone" crashes.
+    node_opts = env.get("NODE_OPTIONS", "")
+    if "--max-old-space-size" not in node_opts:
+        env["NODE_OPTIONS"] = f"{node_opts} --max-old-space-size=4096".strip()
+
     if platform.system().lower() == "windows":
         # Prefer powershell.exe (always installed), fall back to cmd.exe
         ps = shutil.which("powershell.exe") or r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -325,6 +337,20 @@ class ToolBridge:
             result.lines_streamed = lines_streamed
             self._current_process = None
 
+            # Detect Node.js OOM crash and provide a clean error message
+            combined = result.stderr.lower()
+            if any(s in combined for s in (
+                "out of memory", "allocation failed",
+                "fatal process", "zone", "heap limit",
+            )) and result.exit_code != 0:
+                result._oom = True
+                # Replace noisy V8 crash dump with a clear message
+                result.stderr = (
+                    "The AI tool ran out of memory while processing your request.\n"
+                    "This usually happens with very large projects or long prompts.\n"
+                    "Tip: try a shorter prompt, or narrow the scope (e.g. specific files)."
+                )
+
         return result
 
     # ──────────────────────────────────────────────────────────────────
@@ -378,6 +404,20 @@ class ToolBridge:
 
             result = await self._stream_execute(cmd, cwd, timeout, on_line)
             result.tool = tool_name
+
+            # Auto-retry once with more memory if Node.js OOM detected
+            if getattr(result, '_oom', False):
+                # Bump heap to 6GB for the retry
+                retry_env_patch = {"NODE_OPTIONS": "--max-old-space-size=6144"}
+                os.environ.update(retry_env_patch)
+                if on_line:
+                    try:
+                        await on_line("⚠ Out of memory — retrying with more RAM…")
+                    except Exception:
+                        pass
+                result = await self._stream_execute(cmd, cwd, timeout, on_line)
+                result.tool = tool_name
+
             return result
 
     # ──────────────────────────────────────────────────────────────────
