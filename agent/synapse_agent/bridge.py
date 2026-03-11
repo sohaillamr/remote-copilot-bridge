@@ -35,10 +35,22 @@ _NOISE_PATTERNS = [
     re.compile(r'^\s*(Thinking|Working|Processing|Loading|Searching|Reading|Analyzing)\s*[\.…]*\s*$', re.I),
     re.compile(r'^\s*\d+%\s*[\|█▓▒░─━]*'),        # progress bars
     re.compile(r'^\x1b'),                           # leftover escape starts
-    # pwsh.exe errors (tool tried to use PowerShell Core which isn't installed)
-    re.compile(r'.*(?:pwsh|powershell\s*core).*(?:not\s+found|not\s+recognized|ENOENT|cannot\s+find|is\s+not)', re.I),
-    re.compile(r'^Error:\s*spawn\s+pwsh', re.I),
+    # pwsh.exe / PowerShell errors (tool tried to use pwsh which may not be installed or version-check failed)
+    re.compile(r'.*(?:pwsh|powershell\s*(?:core|6\+|7)).*(?:not\s+found|not\s+recognized|not\s+available|ENOENT|cannot\s+find|is\s+not|install\s+it)', re.I),
+    re.compile(r'^Error:\s*(?:spawn|Command\s+failed)', re.I),
     re.compile(r".*'pwsh(?:\.exe)?'.*not\s+recognized", re.I),
+    re.compile(r'.*aka\.ms/powershell', re.I),
+    re.compile(r'.*Missing\s+expression\s+after\s+unary', re.I),
+    re.compile(r'.*MissingExpressionAfterOperator', re.I),
+    re.compile(r'.*Unexpected\s+token.*version', re.I),
+    re.compile(r'.*ParserError.*\[\]', re.I),
+    re.compile(r'.*CategoryInfo.*ParserError', re.I),
+    re.compile(r'^\s*~\s*$'),                      # PS error pointer line
+    re.compile(r'^\s*--version\s*$'),               # bare --version echo
+    re.compile(r'^\s*[×✕✗x]\s+.*(?:Get-Location|Get-ChildItem|working\s+dir)', re.I),  # Copilot shell error lines
+    re.compile(r'.*FullyQualifiedErrorId', re.I),
+    re.compile(r'.*ParentContainsErrorRecord', re.I),
+    re.compile(r'.*At\s+line:\d+\s+char:\d+', re.I),
     # V8/Node.js out-of-memory crash noise
     re.compile(r'.*fatal.*(?:out\s+of\s+memory|allocation\s+failed|zone)', re.I),
     re.compile(r'^<---.*$'),                      # V8 OOM header marker
@@ -119,13 +131,17 @@ _pwsh_shim_dir: str | None = None
 
 def _ensure_pwsh_shim(powershell_path: str) -> str | None:
     """
-    Create a pwsh.exe shim that IS powershell.exe, so CLI tools that
-    hard-check for `pwsh.exe` (via execFile, spawn, PATH lookup) find it.
+    Create a pwsh.exe shim that fakes PowerShell 7 for CLI tools.
+
+    CLI tools like GitHub Copilot run `pwsh.exe --version` to detect
+    PowerShell Core.  A plain copy of powershell.exe fails because
+    PS 5.1 doesn't understand `--version`.  Instead we compile a real
+    .exe that intercepts `--version` / `--help` and delegates everything
+    else to powershell.exe.
 
     Strategy (in order):
-    1. Copy powershell.exe → pwsh.exe  (real .exe, works everywhere)
-    2. Compile a tiny C# wrapper via csc.exe  (fallback)
-    3. Create pwsh.cmd + pwsh.bat text shims  (last resort)
+    1. Compile a smart wrapper via .NET csc.exe  (best: handles --version)
+    2. Create pwsh.cmd + pwsh.bat text shims  (fallback for cmd /c calls)
     """
     global _pwsh_shim_dir
     if _pwsh_shim_dir and os.path.isdir(_pwsh_shim_dir):
@@ -137,24 +153,16 @@ def _ensure_pwsh_shim(powershell_path: str) -> str | None:
 
         exe_path = os.path.join(shim_dir, "pwsh.exe")
 
-        # ── Strategy 1: copy powershell.exe as pwsh.exe ───────────────
-        if not os.path.isfile(exe_path):
-            try:
-                shutil.copy2(powershell_path, exe_path)
-            except Exception:
-                pass
-
-        # ── Strategy 2: compile a real exe via .NET csc.exe ────────────
+        # ── Strategy 1: compile a smart wrapper that fakes --version ──
         if not os.path.isfile(exe_path):
             _compile_pwsh_exe(shim_dir, powershell_path)
 
-        # ── Strategy 3: .cmd + .bat text shims (works with cmd /c) ───
-        if not os.path.isfile(exe_path):
-            for ext in ("cmd", "bat"):
-                shim = os.path.join(shim_dir, f"pwsh.{ext}")
-                if not os.path.isfile(shim):
-                    with open(shim, "w") as f:
-                        f.write(f'@"{powershell_path}" %*\n')
+        # ── Strategy 2: .cmd + .bat text shims (last resort) ─────────
+        for ext in ("cmd", "bat"):
+            shim = os.path.join(shim_dir, f"pwsh.{ext}")
+            if not os.path.isfile(shim):
+                with open(shim, "w") as f:
+                    f.write(f'@"{powershell_path}" %*\n')
 
         _pwsh_shim_dir = shim_dir
         return shim_dir
@@ -164,10 +172,13 @@ def _ensure_pwsh_shim(powershell_path: str) -> str | None:
 
 def _compile_pwsh_exe(shim_dir: str, powershell_path: str) -> bool:
     """
-    Compile a real pwsh.exe wrapper using .NET Framework's csc.exe.
+    Compile a smart pwsh.exe wrapper using .NET Framework's csc.exe.
 
-    Creates an actual Windows executable that transparently forwards
-    all arguments to powershell.exe, inheriting stdin/stdout/stderr.
+    The wrapper intercepts version/help flags that PowerShell 5.1 doesn't
+    understand and returns fake PowerShell 7 responses, so CLI tools
+    (GitHub Copilot, Claude CLI) that check `pwsh --version` believe
+    PowerShell Core is installed.  All other invocations are forwarded
+    transparently to powershell.exe.
     """
     exe_path = os.path.join(shim_dir, "pwsh.exe")
     cs_path = os.path.join(shim_dir, "_pwsh.cs")
@@ -187,16 +198,37 @@ def _compile_pwsh_exe(shim_dir: str, powershell_path: str) -> bool:
         return False
 
     try:
-        ps = powershell_path.replace('\\', '\\\\')
+        # C# source: intercept --version/-v/--help, forward everything else
         source = (
-            'using System;using System.Diagnostics;'
-            'class P{static int Main(string[] a){'
-            'try{var p=Process.Start(new ProcessStartInfo{'
+            'using System;'
+            'using System.Diagnostics;'
+            'class PwshShim{'
+            'static int Main(string[] args){'
+            'if(args.Length>0){'
+            'string a0=args[0].ToLowerInvariant();'
+            'if(a0=="--version"||a0=="-v"||a0=="-version"){'
+            'Console.WriteLine("7.4.6");return 0;}'
+            'if(a0=="--help"||a0=="-h"||a0=="-help"||a0=="-?"){'
+            'Console.WriteLine("PowerShell 7.4.6 (synapse-shim)");'
+            'Console.WriteLine("Usage: pwsh [options]");'
+            'Console.WriteLine("  -Command  Execute a command");'
+            'Console.WriteLine("  -File     Execute a script file");'
+            'return 0;}}'
+            'try{'
+            'var psi=new ProcessStartInfo{'
             f'FileName=@"{powershell_path}",'
-            'Arguments=string.Join(" ",a),'
-            'UseShellExecute=false});'
-            'p.WaitForExit();return p.ExitCode;}'
-            'catch{return 1;}}}'
+            'UseShellExecute=false,'
+            'RedirectStandardInput=false,'
+            'RedirectStandardOutput=false,'
+            'RedirectStandardError=false};'
+            'string joined=string.Join(" ",args);'
+            'if(!string.IsNullOrEmpty(joined))psi.Arguments=joined;'
+            'var p=Process.Start(psi);'
+            'p.WaitForExit();'
+            'return p.ExitCode;'
+            '}catch(Exception ex){'
+            'Console.Error.WriteLine(ex.Message);'
+            'return 1;}}}'
         )
         with open(cs_path, "w") as f:
             f.write(source)

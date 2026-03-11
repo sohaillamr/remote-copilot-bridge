@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
@@ -6,26 +6,28 @@ import { AgentRelayProvider } from '../contexts/AgentRelayContext'
 import ToastContainer from '../components/ToastContainer'
 import { MessageSquare, FolderOpen, Settings, LayoutDashboard, LogOut, Shield, Zap, Menu, X } from 'lucide-react'
 
+const navItems = [
+  { to: '/app', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/app/chat', icon: MessageSquare, label: 'Chat', end: false },
+  { to: '/app/files', icon: FolderOpen, label: 'Files', end: false },
+  { to: '/app/settings', icon: Settings, label: 'Settings', end: false },
+]
+
 export default function AppLayout() {
   const { user, profile, isAdmin, signOut } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
+
   const handleSignOut = async () => {
+    closeSidebar()
     await signOut()
     navigate('/')
   }
 
-  const navItems = [
-    { to: '/app', icon: LayoutDashboard, label: 'Dashboard', end: true },
-    { to: '/app/chat', icon: MessageSquare, label: 'Chat', end: false },
-    { to: '/app/files', icon: FolderOpen, label: 'Files', end: false },
-    { to: '/app/settings', icon: Settings, label: 'Settings', end: false },
-  ]
-
-  const closeSidebar = () => setSidebarOpen(false)
-
-  const SidebarContent = () => (
+  /* ── Sidebar inner content (plain JSX, NOT a component) ── */
+  const sidebarInner = (
     <>
       <div className="p-5 border-b border-white/[0.06]">
         <div className="flex items-center justify-between">
@@ -36,7 +38,10 @@ export default function AppLayout() {
             </div>
             <span className="text-base font-bold tracking-tight">Synapse</span>
           </div>
-          <button onClick={closeSidebar} className="md:hidden p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 transition-colors">
+          <button
+            onClick={closeSidebar}
+            className="md:hidden p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 transition-colors active:bg-white/10"
+          >
             <X size={18} />
           </button>
         </div>
@@ -95,45 +100,58 @@ export default function AppLayout() {
   return (
     <AgentRelayProvider>
       <div className="flex h-screen bg-[#09090b]">
-        {/* Desktop Sidebar */}
+        {/* Desktop Sidebar — always visible at md+ */}
         <motion.aside
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.35 }}
           className="hidden md:flex w-64 border-r border-white/[0.06] flex-col bg-[#0c0c0f]/80 backdrop-blur-xl"
         >
-          <SidebarContent />
+          {sidebarInner}
         </motion.aside>
 
-        {/* Mobile overlay */}
+        {/* Mobile overlay + drawer — keyed motion elements, no Fragment wrapper */}
         <AnimatePresence>
           {sidebarOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={closeSidebar}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-              />
-              <motion.aside
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="fixed top-0 left-0 bottom-0 w-[280px] max-w-[85vw] border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
-              >
-                <SidebarContent />
-              </motion.aside>
-            </>
+            <motion.div
+              key="sidebar-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={closeSidebar}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+              style={{ touchAction: 'none' }}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.aside
+              key="sidebar-drawer"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed top-0 left-0 bottom-0 w-[280px] max-w-[85vw] border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
+              style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            >
+              {sidebarInner}
+            </motion.aside>
           )}
         </AnimatePresence>
 
         {/* Main content */}
         <main className="flex-1 overflow-auto flex flex-col">
           {/* Mobile top bar */}
-          <div className="md:hidden flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30" style={{ paddingTop: 'max(0.625rem, env(safe-area-inset-top))' }}>
-            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-white/[0.06] text-gray-400 transition-colors">
+          <div
+            className="md:hidden flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl sticky top-0 z-30"
+            style={{ paddingTop: 'max(0.625rem, env(safe-area-inset-top))' }}
+          >
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-xl hover:bg-white/[0.06] text-gray-400 transition-colors active:bg-white/10"
+            >
               <Menu size={20} />
             </button>
             <div className="flex items-center gap-2">
