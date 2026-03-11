@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
-import LandingPage from './pages/Landing'
 import LoginPage from './pages/Login'
+const LandingPage = lazy(() => import('./pages/Landing'))
 const PairPage = lazy(() => import('./pages/Pair'))
 import AppLayout from './layouts/AppLayout'
 import AdminLayout from './layouts/AdminLayout'

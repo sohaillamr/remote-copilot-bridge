@@ -4,9 +4,11 @@ export default function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null)
   const ringRef = useRef<HTMLDivElement>(null)
 
+  // Skip rendering entirely on touch devices
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
   useEffect(() => {
-    // Don't show on touch devices
-    if ('ontouchstart' in window) return
+    if (isTouchDevice) return
 
     const dot = dotRef.current
     const ring = ringRef.current
@@ -21,30 +23,13 @@ export default function CustomCursor() {
       my = e.clientY
     }
 
-    const addHover = () => { isHovering = true }
-    const removeHover = () => { isHovering = false }
-
-    // Track interactive element hover
-    const attachHoverListeners = () => {
-      const targets = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [data-cursor-grow]')
-      targets.forEach(el => {
-        el.addEventListener('mouseenter', addHover)
-        el.addEventListener('mouseleave', removeHover)
-      })
-      return targets
+    // Use event delegation instead of attaching listeners to every element
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      const interactive = target.closest('a, button, input, textarea, select, [role="button"], [data-cursor-grow]')
+      isHovering = !!interactive
     }
-
-    let targets = attachHoverListeners()
-
-    // Re-attach on DOM changes (for lazy-loaded pages)
-    const observer = new MutationObserver(() => {
-      targets.forEach(el => {
-        el.removeEventListener('mouseenter', addHover)
-        el.removeEventListener('mouseleave', removeHover)
-      })
-      targets = attachHoverListeners()
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
 
     // Animation loop — ring trails behind dot smoothly
     let raf: number
@@ -52,34 +37,29 @@ export default function CustomCursor() {
       rx += (mx - rx) * 0.15
       ry += (my - ry) * 0.15
 
-      dot.style.transform = `translate(${mx - 4}px, ${my - 4}px)`
+      dot.style.transform = `translate(${mx - 4}px, ${my - 4}px) scale(${isHovering ? 1.5 : 1})`
+      dot.style.backgroundColor = isHovering ? 'rgb(124, 131, 249)' : '#fff'
       ring.style.transform = `translate(${rx - 20}px, ${ry - 20}px) scale(${isHovering ? 1.8 : 1})`
       ring.style.opacity = isHovering ? '0.5' : '0.3'
       ring.style.borderColor = isHovering ? 'rgb(124, 131, 249)' : 'rgba(148, 163, 184, 0.5)'
-      dot.style.backgroundColor = isHovering ? 'rgb(124, 131, 249)' : '#fff'
-      dot.style.transform = `translate(${mx - 4}px, ${my - 4}px) scale(${isHovering ? 1.5 : 1})`
 
       raf = requestAnimationFrame(animate)
     }
 
     document.addEventListener('mousemove', move)
+    document.addEventListener('mouseover', handleMouseOver)
     raf = requestAnimationFrame(animate)
     document.body.style.cursor = 'none'
 
     return () => {
       document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseover', handleMouseOver)
       cancelAnimationFrame(raf)
-      observer.disconnect()
       document.body.style.cursor = ''
-      targets.forEach(el => {
-        el.removeEventListener('mouseenter', addHover)
-        el.removeEventListener('mouseleave', removeHover)
-      })
     }
-  }, [])
+  }, [isTouchDevice])
 
-  // Hide on touch devices
-  if (typeof window !== 'undefined' && 'ontouchstart' in window) return null
+  if (isTouchDevice) return null
 
   return (
     <>

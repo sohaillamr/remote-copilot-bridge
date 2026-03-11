@@ -70,10 +70,10 @@ export default function Dashboard() {
       {/* Quick actions */}
       <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         {[
-          { to: '/app/chat', icon: MessageSquare, label: 'New Chat', desc: 'Start a prompt session', color: 'synapse' },
-          { to: '/app/files', icon: Terminal, label: 'File Browser', desc: 'Browse remote files', color: 'blue' },
-          { to: '/app/settings', icon: Clock, label: 'Settings', desc: 'Manage account', color: 'purple' },
-        ].map(({ to, icon: Icon, label, desc, color }) => (
+          { to: '/app/chat', icon: MessageSquare, label: 'New Chat', desc: 'Start a prompt session', iconBg: 'bg-synapse-600/10', iconColor: 'text-synapse-400' },
+          { to: '/app/files', icon: Terminal, label: 'File Browser', desc: 'Browse remote files', iconBg: 'bg-blue-600/10', iconColor: 'text-blue-400' },
+          { to: '/app/settings', icon: Clock, label: 'Settings', desc: 'Manage account', iconBg: 'bg-purple-600/10', iconColor: 'text-purple-400' },
+        ].map(({ to, icon: Icon, label, desc, iconBg, iconColor }) => (
           <StaggerItem key={to}>
             <Link to={to}>
               <motion.div
@@ -82,8 +82,8 @@ export default function Dashboard() {
                 className="glass-card rounded-xl p-3 sm:p-4 group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 sm:p-2.5 rounded-xl bg-${color}-600/10`}>
-                    <Icon className={`text-${color}-400`} size={18} />
+                  <div className={`p-2 sm:p-2.5 rounded-xl ${iconBg}`}>
+                    <Icon className={iconColor} size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{label}</p>

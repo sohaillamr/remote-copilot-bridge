@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react'
 import { supabase, type Agent } from '../lib/supabase'
@@ -150,15 +151,16 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
     const list = (data || []) as Agent[]
     setAgents(list)
 
-    // Auto-select if only one, or restore previous selection
-    if (!selectedAgent && list.length === 1) {
-      setSelectedAgent(list[0])
-    } else if (selectedAgent) {
-      // Refresh the selected agent data
-      const updated = list.find(a => a.id === selectedAgent.id)
-      if (updated) setSelectedAgent(updated)
-    }
-  }, [user, selectedAgent])
+    // Auto-select if only one, or refresh the selected agent's data
+    setSelectedAgent(prev => {
+      if (!prev && list.length === 1) return list[0]
+      if (prev) {
+        const updated = list.find(a => a.id === prev.id)
+        return updated ?? prev
+      }
+      return prev
+    })
+  }, [user])
 
   useEffect(() => {
     if (user) refreshAgents()
@@ -387,35 +389,41 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
     setLastResult(null)
   }, [])
 
+  const contextValue = useMemo<AgentRelayContextType>(() => ({
+    isConnected,
+    agentReachable,
+    agents,
+    selectedAgent,
+    selectAgent: setSelectedAgent,
+    refreshAgents,
+    detectedTools,
+    modelChoices,
+    agentWorkDir,
+    outputLines,
+    lastResult,
+    isWaiting,
+    sendPrompt,
+    sendCancel,
+    sendListFiles,
+    sendReadFile,
+    sendShell,
+    sendGit,
+    sendSetWorkdir,
+    sendPing,
+    clearOutput,
+    toasts,
+    addToast,
+    dismissToast,
+  }), [
+    isConnected, agentReachable, agents, selectedAgent, refreshAgents,
+    detectedTools, modelChoices, agentWorkDir, outputLines, lastResult,
+    isWaiting, sendPrompt, sendCancel, sendListFiles, sendReadFile,
+    sendShell, sendGit, sendSetWorkdir, sendPing, clearOutput,
+    toasts, addToast, dismissToast,
+  ])
+
   return (
-    <AgentRelayContext.Provider
-      value={{
-        isConnected,
-        agentReachable,
-        agents,
-        selectedAgent,
-        selectAgent: setSelectedAgent,
-        refreshAgents,
-        detectedTools,
-        modelChoices,
-        agentWorkDir,
-        outputLines,
-        lastResult,
-        isWaiting,
-        sendPrompt,
-        sendCancel,
-        sendListFiles,
-        sendReadFile,
-        sendShell,
-        sendGit,
-        sendSetWorkdir,
-        sendPing,
-        clearOutput,
-        toasts,
-        addToast,
-        dismissToast,
-      }}
-    >
+    <AgentRelayContext.Provider value={contextValue}>
       {children}
     </AgentRelayContext.Provider>
   )

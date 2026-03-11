@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
@@ -65,10 +65,13 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isSendingRef = useRef(false)
 
-  // Build tools list: dynamic from agent + fallback
-  const toolsList = detectedTools.length > 0
-    ? detectedTools.map(t => t.name)
-    : ['copilot', 'claude', 'gemini', 'codex', 'aider']
+  // Build tools list: dynamic from agent + fallback (memoized)
+  const toolsList = useMemo(() =>
+    detectedTools.length > 0
+      ? detectedTools.map(t => t.name)
+      : ['copilot', 'claude', 'gemini', 'codex', 'aider'],
+    [detectedTools]
+  )
 
   // If selectedTool isn't in the list, reset to first
   useEffect(() => {
@@ -82,8 +85,11 @@ export default function Chat() {
     setSelectedModel('')
   }, [selectedTool])
 
-  // Get model choices for the currently selected tool
-  const currentModels = modelChoices[selectedTool] || []
+  // Get model choices for the currently selected tool (memoized)
+  const currentModels = useMemo(() =>
+    modelChoices[selectedTool] || [],
+    [modelChoices, selectedTool]
+  )
 
   const {
     isSupported: voiceSupported,
@@ -107,7 +113,17 @@ export default function Chat() {
     },
   })
 
-  const streamingText = outputLines.map(l => l.line).join('\n')
+  // Clean up voice on unmount
+  useEffect(() => {
+    return () => {
+      if (isListening) stopListening()
+    }
+  }, [isListening, stopListening])
+
+  const streamingText = useMemo(() =>
+    outputLines.map(l => l.line).join('\n'),
+    [outputLines]
+  )
 
   // Auto-scroll
   useEffect(() => {
@@ -170,7 +186,7 @@ export default function Chat() {
         })
       }
     }
-  }, [lastResult])
+  }, [lastResult, conversationId, selectedTool, user])
 
   useEffect(() => {
     if (streamingText && isWaiting) {
@@ -217,10 +233,11 @@ export default function Chat() {
   }
 
   async function loadConversations() {
+    if (!user) return
     const { data } = await supabase
       .from('conversations')
       .select('id, title, tool, created_at, updated_at')
-      .eq('user_id', user!.id)
+      .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(50)
     setConversations((data as ConversationMeta[]) || [])

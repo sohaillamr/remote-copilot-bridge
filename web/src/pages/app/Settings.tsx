@@ -6,7 +6,7 @@ import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, Gr
 import { FadeIn } from '../../components/Animations'
 
 export default function Settings() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -78,7 +78,8 @@ export default function Settings() {
       }).eq('id', user.id)
       setShowStudentModal(false)
       setEduEmail('')
-      window.location.reload()
+      // Refresh profile instead of full page reload
+      if (user) refreshProfile(user.id)
     } catch (err: any) {
       setEduError(err.message || 'Failed to verify')
     } finally {

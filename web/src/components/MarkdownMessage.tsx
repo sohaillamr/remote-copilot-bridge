@@ -3,7 +3,7 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Copy, Check } from 'lucide-react'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 
 interface Props {
   content: string
@@ -91,7 +91,7 @@ function CodeBlock({ language, children }: { language: string; children: string 
   )
 }
 
-export default function MarkdownMessage({ content, className = '' }: Props) {
+export default memo(function MarkdownMessage({ content, className = '' }: Props) {
   const processed = useMemo(() => preprocessContent(content), [content])
 
   if (!looksLikeMarkdown(processed)) {
@@ -168,4 +168,4 @@ export default function MarkdownMessage({ content, className = '' }: Props) {
       </ReactMarkdown>
     </div>
   )
-}
+})

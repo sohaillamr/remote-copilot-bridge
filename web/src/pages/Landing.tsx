@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap, Terminal, Globe, Shield, ArrowRight, Check, Sparkles,
-  Lock, Mic, Copy, CheckCheck, Github,
+  Lock, Mic, Copy, CheckCheck,
   Smartphone, Monitor, Wifi, GraduationCap,
   Cpu, Radio, ScanSearch, MonitorSmartphone, Code2, FolderLock,
 } from 'lucide-react'
@@ -91,7 +91,7 @@ const testimonials = [
   {
     name: 'Omar T.',
     role: 'Full-Stack Engineer',
-    text: 'I was skeptical about security, but the agent runs locally and the code is open source. Nothing leaves my machine.',
+    text: 'I was skeptical about security, but the agent runs locally and nothing leaves my machine. Fully encrypted relay.',
   },
 ]
 
@@ -458,12 +458,7 @@ export default function LandingPage() {
                 <ArrowRight size={16} />
               </Link>
             </MagneticButton>
-            <MagneticButton>
-              <a href="https://github.com/sohaillamr/synapse-agent" target="_blank" rel="noopener noreferrer" className="btn-secondary text-base px-8 py-3.5 w-full sm:w-auto text-center flex items-center justify-center gap-2">
-                <Github size={16} />
-                View Source
-              </a>
-            </MagneticButton>
+
           </div>
         </FadeIn>
 
@@ -562,10 +557,9 @@ export default function LandingPage() {
         <FadeIn>
           <div className="text-center mb-10 sm:mb-14">
             <p className="text-sm text-synapse-400 uppercase tracking-widest mb-3">Built for Developers, by Developers</p>
-            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight">Security you can verify</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight">Security you can trust</h2>
             <p className="text-gray-400 text-sm sm:text-base mt-4 max-w-2xl mx-auto">
-              We know you won't install a pip package with remote access unless you trust it.
-              Here's why you can.
+              Your code never leaves your machine. We relay prompts — nothing more.
             </p>
           </div>
         </FadeIn>
@@ -590,21 +584,13 @@ export default function LandingPage() {
             <GlowCard>
               <div className="flex flex-col items-center text-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-synapse-500/10 flex items-center justify-center">
-                  <Github className="text-synapse-400" size={22} />
+                  <Cpu className="text-synapse-400" size={22} />
                 </div>
-                <h3 className="text-base font-semibold">Open Source Agent</h3>
+                <h3 className="text-base font-semibold">100% Local Execution</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">
-                  The agent code is fully open source. Read every line before you install.
-                  Transparency = trust.
+                  Your AI tools run entirely on your machine. Your code, API keys, and context never leave your device.
+                  Zero cloud processing.
                 </p>
-                <a
-                  href="https://github.com/sohaillamr/synapse-agent"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-synapse-400 hover:text-synapse-300 underline underline-offset-2"
-                >
-                  View on GitHub →
-                </a>
               </div>
             </GlowCard>
           </StaggerItem>
@@ -698,11 +684,7 @@ export default function LandingPage() {
             <span className="text-sm font-semibold text-gray-400">Synapse</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-gray-600">
-            <a href="https://github.com/sohaillamr/synapse-agent" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors flex items-center gap-1">
-              <Github size={12} /> GitHub
-            </a>
-            <span>•</span>
-            <span>&copy; 2026 Synapse</span>
+            <span>&copy; 2025 Synapse. All rights reserved.</span>
           </div>
         </div>
       </footer>

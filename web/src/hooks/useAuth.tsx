@@ -14,6 +14,7 @@ interface AuthContextType {
   signInWithEmail: (email: string) => Promise<void>
   signOut: () => Promise<void>
   hasActiveSubscription: boolean
+  refreshProfile: (userId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -79,6 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) setProfile(data as Profile)
   }
 
+  // Public method to refresh profile data
+  const refreshProfile = fetchProfile
+
   async function signInWithGithub() {
     await supabase.auth.signInWithOAuth({
       provider: 'github',
@@ -120,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithEmail,
         signOut,
         hasActiveSubscription,
+        refreshProfile,
       }}
     >
       {children}

@@ -63,6 +63,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const accumulatedRef = useRef('')
+  const firedFinalRef = useRef(false)
 
   // Clean up on unmount
   useEffect(() => {
@@ -87,6 +88,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     }
 
     accumulatedRef.current = ''
+    firedFinalRef.current = false
 
     recognition.onstart = () => {
       setIsListening(true)
@@ -108,6 +110,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       if (finalTranscript) {
         accumulatedRef.current += (accumulatedRef.current ? ' ' : '') + finalTranscript.trim()
         setTranscript(accumulatedRef.current)
+        firedFinalRef.current = true
         onResult?.(accumulatedRef.current)
       } else if (interimTranscript) {
         // Show interim text while still speaking
@@ -138,8 +141,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     recognition.onend = () => {
       setIsListening(false)
       recognitionRef.current = null
-      // Fire final result on end if we have accumulated text
-      if (accumulatedRef.current) {
+      // Fire final result on end ONLY if we haven't already fired via isFinal
+      if (accumulatedRef.current && !firedFinalRef.current) {
         onResult?.(accumulatedRef.current)
       }
     }
