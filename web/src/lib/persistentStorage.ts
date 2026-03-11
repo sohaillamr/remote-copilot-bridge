@@ -7,6 +7,12 @@
  *
  * Also stores a stable device fingerprint so the backend can recognize
  * returning devices and restore sessions even if all browser storage is wiped.
+ *
+ * === Device Refresh Token ===
+ * After QR pairing, the mobile device stores its own independent refresh_token
+ * in a separate key ('synapse-device-refresh'). If the main Supabase session
+ * is lost (localStorage evicted, etc.), useAuth can silently re-authenticate
+ * using this token — no QR re-scan needed.
  */
 
 const DB_NAME = 'synapse-auth-db'
@@ -67,7 +73,6 @@ async function idbRemove(key: string): Promise<void> {
 // ── Device fingerprint ─────────────────────────────────────
 
 function generateDeviceId(): string {
-  // Combine stable browser properties for a semi-unique device fingerprint
   const canvas = (() => {
     try {
       const c = document.createElement('canvas')
@@ -92,7 +97,6 @@ function generateDeviceId(): string {
     canvas,
   ]
 
-  // Simple hash
   let hash = 0
   const str = parts.join('|')
   for (let i = 0; i < str.length; i++) {
@@ -107,48 +111,73 @@ let _deviceId: string | null = null
 
 export function getDeviceId(): string {
   if (_deviceId) return _deviceId
-
-  // Try to read a previously stored device ID first (stable across sessions)
   const stored = localStorage.getItem('synapse-device-id')
-  if (stored) {
-    _deviceId = stored
-    return stored
-  }
-
-  // Generate new one and persist
+  if (stored) { _deviceId = stored; return stored }
   const id = generateDeviceId()
   localStorage.setItem('synapse-device-id', id)
-  // Also store in IndexedDB for extra durability
   idbSet('synapse-device-id', id)
   _deviceId = id
   return id
 }
 
-// Restore device ID from IndexedDB if localStorage was cleared
 export async function restoreDeviceId(): Promise<string> {
   const fromLS = localStorage.getItem('synapse-device-id')
-  if (fromLS) {
-    _deviceId = fromLS
-    return fromLS
-  }
-
+  if (fromLS) { _deviceId = fromLS; return fromLS }
   const fromIDB = await idbGet('synapse-device-id')
   if (fromIDB) {
     localStorage.setItem('synapse-device-id', fromIDB)
     _deviceId = fromIDB
     return fromIDB
   }
-
   return getDeviceId()
+}
+
+// ── Device refresh token (permanent QR pairing) ────────────
+
+const DEVICE_REFRESH_KEY = 'synapse-device-refresh'
+
+/**
+ * Save the device's own independent refresh_token.
+ * Called after QR pairing succeeds and after every token rotation.
+ */
+export async function saveDeviceRefreshToken(refreshToken: string): Promise<void> {
+  try {
+    localStorage.setItem(DEVICE_REFRESH_KEY, refreshToken)
+    await idbSet(DEVICE_REFRESH_KEY, refreshToken)
+  } catch {
+    // Best effort
+  }
+}
+
+/**
+ * Retrieve the device refresh token from localStorage or IndexedDB.
+ * Used on startup to silently re-authenticate if the main session is gone.
+ */
+export async function getDeviceRefreshToken(): Promise<string | null> {
+  const fromLS = localStorage.getItem(DEVICE_REFRESH_KEY)
+  if (fromLS) return fromLS
+  const fromIDB = await idbGet(DEVICE_REFRESH_KEY)
+  if (fromIDB) {
+    localStorage.setItem(DEVICE_REFRESH_KEY, fromIDB)
+    return fromIDB
+  }
+  return null
+}
+
+/**
+ * Clear the device refresh token (on explicit sign-out).
+ */
+export async function clearDeviceRefreshToken(): Promise<void> {
+  try {
+    localStorage.removeItem(DEVICE_REFRESH_KEY)
+    await idbRemove(DEVICE_REFRESH_KEY)
+  } catch {
+    // Best effort
+  }
 }
 
 // ── Hybrid storage for Supabase ────────────────────────────
 
-/**
- * On app startup, recover ALL auth keys from IndexedDB into localStorage
- * before Supabase ever tries to read them. This runs once synchronously-ish
- * at module load time via restoreSessionFromIDB().
- */
 let _idbRecoveryDone = false
 let _idbRecoveryPromise: Promise<void> | null = null
 
@@ -158,6 +187,7 @@ export function restoreSessionFromIDB(): Promise<void> {
 
   _idbRecoveryPromise = (async () => {
     try {
+      // Recover main auth session
       const authKey = 'synapse-auth'
       const fromLS = localStorage.getItem(authKey)
       if (!fromLS) {
@@ -166,6 +196,16 @@ export function restoreSessionFromIDB(): Promise<void> {
           localStorage.setItem(authKey, fromIDB)
         }
       }
+      // Also recover device refresh token
+      const refreshLS = localStorage.getItem(DEVICE_REFRESH_KEY)
+      if (!refreshLS) {
+        const refreshIDB = await idbGet(DEVICE_REFRESH_KEY)
+        if (refreshIDB) {
+          localStorage.setItem(DEVICE_REFRESH_KEY, refreshIDB)
+        }
+      }
+      // Also recover device ID
+      await restoreDeviceId()
     } catch {
       // Silently fail
     } finally {
@@ -183,8 +223,7 @@ export const persistentStorage = {
 
   setItem: (key: string, value: string): void => {
     localStorage.setItem(key, value)
-    // Mirror to IndexedDB as a durable backup
-    idbSet(key, value)
+    idbSet(key, value)  // Mirror to IndexedDB as durable backup
   },
 
   removeItem: (key: string): void => {

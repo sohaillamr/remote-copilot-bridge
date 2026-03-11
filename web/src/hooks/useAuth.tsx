@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase, type Profile } from '../lib/supabase'
-import { restoreSessionFromIDB } from '../lib/persistentStorage'
+import {
+  restoreSessionFromIDB,
+  saveDeviceRefreshToken,
+  getDeviceRefreshToken,
+  clearDeviceRefreshToken,
+} from '../lib/persistentStorage'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -25,7 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Decode role from JWT
   const isAdmin = (() => {
     if (!session?.access_token) return false
     try {
@@ -47,28 +51,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })()
 
   useEffect(() => {
-    // Wait for IndexedDB session recovery (in case localStorage was wiped on mobile)
-    // then get the session
-    restoreSessionFromIDB().then(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session)
-        setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
-        setIsLoading(false)
-      })
-    })
+    let mounted = true
 
-    // Listen for auth changes
+    async function initAuth() {
+      // 1. Ensure IDB → localStorage recovery is complete
+      await restoreSessionFromIDB()
+
+      // 2. Try to get existing session from storage
+      const { data: { session: existingSession } } = await supabase.auth.getSession()
+
+      if (existingSession) {
+        if (mounted) {
+          setSession(existingSession)
+          setUser(existingSession.user)
+          fetchProfile(existingSession.user.id)
+          // Keep device refresh token in sync (token rotation)
+          if (existingSession.refresh_token) {
+            saveDeviceRefreshToken(existingSession.refresh_token)
+          }
+          setIsLoading(false)
+        }
+        return
+      }
+
+      // 3. No session found — try silent re-auth via device refresh token
+      //    This is the "permanent QR pairing" fallback: even if Supabase's
+      //    main session storage was evicted, we can re-authenticate using
+      //    the separately stored refresh token.
+      const deviceRefresh = await getDeviceRefreshToken()
+      if (deviceRefresh) {
+        try {
+          const { data, error } = await supabase.auth.refreshSession({
+            refresh_token: deviceRefresh,
+          })
+          if (!error && data?.session) {
+            if (mounted) {
+              setSession(data.session)
+              setUser(data.session.user)
+              fetchProfile(data.session.user.id)
+              // Update stored token (rotation gives us a new one)
+              if (data.session.refresh_token) {
+                saveDeviceRefreshToken(data.session.refresh_token)
+              }
+            }
+          } else {
+            // Device refresh token is expired/revoked — clear it
+            // User will need to re-pair or login normally
+            await clearDeviceRefreshToken()
+          }
+        } catch {
+          // Failed to re-auth, clear stale token
+          await clearDeviceRefreshToken()
+        }
+      }
+
+      if (mounted) setIsLoading(false)
+    }
+
+    initAuth()
+
+    // 4. Listen for auth state changes (auto-refresh, sign-in, sign-out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (!mounted) return
         setSession(session)
         setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
-        else setProfile(null)
+        if (session?.user) {
+          fetchProfile(session.user.id)
+          // Keep device refresh token updated on every token rotation
+          if (session.refresh_token) {
+            saveDeviceRefreshToken(session.refresh_token)
+          }
+        } else {
+          setProfile(null)
+        }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function fetchProfile(userId: string) {
@@ -80,7 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) setProfile(data as Profile)
   }
 
-  // Public method to refresh profile data
   const refreshProfile = fetchProfile
 
   async function signInWithGithub() {
@@ -105,6 +167,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Clear the device refresh token so this device is unpaired
+    await clearDeviceRefreshToken()
     await supabase.auth.signOut()
     setUser(null)
     setSession(null)
@@ -114,17 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user,
-        session,
-        profile,
-        isAdmin,
-        isLoading,
-        signInWithGithub,
-        signInWithGoogle,
-        signInWithEmail,
-        signOut,
-        hasActiveSubscription,
-        refreshProfile,
+        user, session, profile, isAdmin, isLoading,
+        signInWithGithub, signInWithGoogle, signInWithEmail, signOut,
+        hasActiveSubscription, refreshProfile,
       }}
     >
       {children}

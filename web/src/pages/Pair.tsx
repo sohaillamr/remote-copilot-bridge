@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Zap, Loader2, CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { saveDeviceRefreshToken } from '../lib/persistentStorage'
 import GridBackground from '../components/GridBackground'
 
 export default function PairPage() {
@@ -35,10 +36,30 @@ export default function PairPage() {
       }
 
       if (data?.access_token && data?.refresh_token) {
-        await supabase.auth.setSession({
+        // Establish the session from the shared desktop tokens
+        const { error: setErr } = await supabase.auth.setSession({
           access_token: data.access_token,
           refresh_token: data.refresh_token,
         })
+        if (setErr) throw setErr
+
+        // CRITICAL: Immediately refresh to get this device's OWN independent
+        // tokens. The desktop's refresh_token will be rotated away when either
+        // device refreshes, so the mobile needs its own copy.
+        const { data: refreshed, error: refreshErr } =
+          await supabase.auth.refreshSession()
+
+        if (refreshErr) {
+          // refreshSession failed — the original tokens still work for now,
+          // just save what we have. Auto-refresh will try again later.
+          console.warn('Post-pair refresh failed:', refreshErr.message)
+          await saveDeviceRefreshToken(data.refresh_token)
+        } else if (refreshed?.session?.refresh_token) {
+          // Save the device's own independent refresh token — this survives
+          // even if localStorage/IDB is evicted and the main session is lost.
+          await saveDeviceRefreshToken(refreshed.session.refresh_token)
+        }
+
         setStatus('success')
         setTimeout(() => navigate('/app'), 2000)
       } else {
@@ -54,11 +75,7 @@ export default function PairPage() {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4">
       <GridBackground />
-
-      {/* Radial glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-synapse-600/[0.06] rounded-full blur-[100px] pointer-events-none" />
-
-      {/* Back link */}
       <motion.div
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
@@ -70,14 +87,12 @@ export default function PairPage() {
           Back
         </Link>
       </motion.div>
-
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.5 }}
         className="relative z-10 w-full max-w-sm"
       >
-        {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-10">
           <div className="relative">
             <Zap className="text-synapse-400" size={24} />
@@ -85,27 +100,16 @@ export default function PairPage() {
           </div>
           <span className="text-xl font-bold tracking-tight">Synapse</span>
         </div>
-
-        {/* Card */}
         <div className="glass-card rounded-2xl p-8 text-center">
           {status === 'loading' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-4"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <Loader2 className="animate-spin text-synapse-400 mx-auto" size={32} />
               <h2 className="text-lg font-bold">Pairing Device...</h2>
               <p className="text-sm text-gray-400">Verifying your login token.</p>
             </motion.div>
           )}
-
           {status === 'success' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="space-y-4"
-            >
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto">
                 <CheckCircle className="text-emerald-400" size={32} />
               </div>
@@ -113,22 +117,14 @@ export default function PairPage() {
               <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
             </motion.div>
           )}
-
           {status === 'error' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="space-y-4"
-            >
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
                 <XCircle className="text-red-400" size={32} />
               </div>
               <h2 className="text-lg font-bold text-red-400">Pairing Failed</h2>
               <p className="text-sm text-gray-400">{errorMsg}</p>
-              <Link
-                to="/login"
-                className="inline-block text-sm text-synapse-400 hover:text-synapse-300 transition-colors mt-2"
-              >
+              <Link to="/login" className="inline-block text-sm text-synapse-400 hover:text-synapse-300 transition-colors mt-2">
                 Go to Login →
               </Link>
             </motion.div>
