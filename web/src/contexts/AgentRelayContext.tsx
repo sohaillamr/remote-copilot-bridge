@@ -102,7 +102,7 @@ const AgentRelayContext = createContext<AgentRelayContextType | undefined>(undef
 // ── Provider ────────────────────────────────────────────────
 
 export function AgentRelayProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, hasActiveSubscription } = useAuth()
 
   // Channel
   const channelRef = useRef<RealtimeChannel | null>(null)
@@ -118,6 +118,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
   const [agentWorkDir, setAgentWorkDir] = useState('')
   const [modelChoices, setModelChoices] = useState<Record<string, string[]>>({})
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const promptTimestampsRef = useRef<number[]>([])
 
   // Streaming
   const [outputLines, setOutputLines] = useState<OutputLine[]>([])
@@ -172,7 +173,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
     if (!user) return
 
     const channel = supabase.channel(`agent:${user.id}`, {
-      config: { broadcast: { self: false } },
+      config: { broadcast: { self: false }, private: true },
     })
 
     // --- Streaming events ---
@@ -290,11 +291,27 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
       addToast('Not connected to channel', 'error')
       return
     }
+
+    // ── Subscription enforcement ──
+    if (!hasActiveSubscription) {
+      addToast('Your trial has expired. Please upgrade in Settings to continue.', 'error', 6000)
+      return
+    }
+
+    // ── Rate limiting: max 10 prompts per minute ──
+    const now = Date.now()
+    promptTimestampsRef.current = promptTimestampsRef.current.filter(t => now - t < 60_000)
+    if (promptTimestampsRef.current.length >= 10) {
+      addToast('Rate limit reached. Please wait before sending more prompts.', 'warning')
+      return
+    }
+    promptTimestampsRef.current.push(now)
+
     setOutputLines([])
     setLastResult(null)
     setIsWaiting(true)
 
-    // Safety timeout: if no result in 3 minutes, clear waiting state
+    // Safety timeout: if no result in 6 minutes, clear waiting state
     if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
     waitingTimeoutRef.current = setTimeout(() => {
       setIsWaiting(prev => {
@@ -304,7 +321,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
         }
         return false
       })
-    }, 180_000)
+    }, 360_000)
 
     try {
       const status = await channelRef.current.send({
@@ -323,7 +340,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
       setIsWaiting(false)
       if (waitingTimeoutRef.current) clearTimeout(waitingTimeoutRef.current)
     }
-  }, [addToast])
+  }, [addToast, hasActiveSubscription])
 
   const sendCancel = useCallback(async () => {
     if (!channelRef.current) return
@@ -360,6 +377,10 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
 
   const sendGit = useCallback(async (gitArgs: string, conversationId: string) => {
     if (!channelRef.current) return
+    if (/[|&;><`$()\n\r]/.test(gitArgs)) {
+      addToast('Blocked unsafe git command input.', 'error')
+      return
+    }
     setOutputLines([])
     setLastResult(null)
     setIsWaiting(true)
@@ -367,7 +388,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
       type: 'broadcast', event: 'shell',
       payload: { command: `git ${gitArgs}`, conversation_id: conversationId },
     })
-  }, [])
+  }, [addToast])
 
   const sendSetWorkdir = useCallback(async (path: string) => {
     if (!channelRef.current) return

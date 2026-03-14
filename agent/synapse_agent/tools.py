@@ -105,7 +105,7 @@ TOOL_REGISTRY: dict[str, dict] = {
             ],
         },
         "command_template": '{binary} -p "{prompt}"',
-        "install_hint": "npm install -g @anthropic-ai/gemini-cli",
+        "install_hint": "npm install -g @google/gemini-cli",
     },
     "codex": {
         "display_name": "OpenAI Codex CLI",

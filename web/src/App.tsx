@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
-import LoginPage from './pages/Login'
+const LoginPage = lazy(() => import('./pages/Login'))
 const LandingPage = lazy(() => import('./pages/Landing'))
 const PairPage = lazy(() => import('./pages/Pair'))
 import AppLayout from './layouts/AppLayout'
@@ -21,6 +21,9 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'))
 const AdminUsage = lazy(() => import('./pages/admin/AdminUsage'))
 const AdminSystem = lazy(() => import('./pages/admin/AdminSystem'))
+const Terms = lazy(() => import('./pages/Terms'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 const Loader = () => (
   <div className="flex items-center justify-center h-64">
@@ -38,9 +41,22 @@ const FullScreenLoader = () => (
 )
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth()
+  const { user, profile, isLoading } = useAuth()
   if (isLoading) return <FullScreenLoader />
   if (!user) return <Navigate to="/login" />
+  if (profile?.banned_at) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#09090b]">
+        <div className="text-center max-w-md mx-auto px-6">
+          <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-5">
+            <Loader2 className="text-red-400" size={24} />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">Account Suspended</h2>
+          <p className="text-sm text-gray-500">Your account has been suspended. Contact support if you believe this is an error.</p>
+        </div>
+      </div>
+    )
+  }
   return <>{children}</>
 }
 
@@ -96,7 +112,11 @@ function AnimatedRoutes() {
               <Route path="system" element={<AdminSystem />} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" />} />
+            {/* Legal */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </motion.div>

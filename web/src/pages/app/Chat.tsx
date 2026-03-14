@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { useRelay } from '../../contexts/AgentRelayContext'
@@ -11,6 +11,8 @@ import {
   GitBranch, Zap, Copy, Check, Plus, Clock, PanelLeftClose, PanelLeftOpen,
   Pencil, Trash2,
 } from 'lucide-react'
+
+const MAX_PROMPT_LENGTH = 16_000 // 16KB max prompt size
 
 interface ChatMessage {
   id: string
@@ -31,7 +33,7 @@ interface ConversationMeta {
 export default function Chat() {
   const { id: conversationId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, hasActiveSubscription } = useAuth()
   const {
     isConnected,
     agentReachable,
@@ -298,6 +300,7 @@ export default function Chat() {
 
     const prompt = input.trim()
     if (!prompt || !isConnected || isWaiting) return
+    if (prompt.length > MAX_PROMPT_LENGTH) return
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -397,7 +400,7 @@ export default function Chat() {
   }, [commitMsg, isConnected, isWaiting, sendGit])
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full" role="main" aria-label="Chat interface">
       {/* ─── Conversation Sidebar ─── */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -409,6 +412,7 @@ export default function Chat() {
             exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+            aria-hidden="true"
           />
           <motion.div
             initial={{ width: 0, opacity: 0 }}
@@ -623,7 +627,20 @@ export default function Chat() {
         </AnimatePresence>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3" role="log" aria-label="Chat messages" aria-live="polite">
+          {/* Subscription expired banner */}
+          {!hasActiveSubscription && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm"
+            >
+              <Zap size={16} className="shrink-0" />
+              <span className="flex-1">Your trial has expired. Upgrade to keep sending prompts.</span>
+              <Link to="/app/settings" className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 transition-colors">Upgrade</Link>
+            </motion.div>
+          )}
+
           {messages.length === 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -794,24 +811,36 @@ export default function Chat() {
           </AnimatePresence>
 
           <div className="flex items-end gap-1.5 sm:gap-2 max-w-4xl mx-auto">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                isListening
-                  ? 'Listening\u2026 speak now'
-                  : isConnected
-                    ? `Ask ${selectedTool}...`
-                    : 'Agent is offline'
-              }
-              disabled={!isConnected}
-              rows={1}
-              className={`input flex-1 resize-none min-h-[42px] max-h-40 transition-all text-base sm:text-sm ${
-                isListening ? 'border-red-500/30 ring-1 ring-red-500/20' : ''
-              }`}
-            />
+            <div className="relative flex-1">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value.slice(0, MAX_PROMPT_LENGTH))}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isListening
+                    ? 'Listening\u2026 speak now'
+                    : isConnected
+                      ? `Ask ${selectedTool}...`
+                      : 'Agent is offline'
+                }
+                disabled={!isConnected}
+                rows={1}
+                maxLength={MAX_PROMPT_LENGTH}
+                aria-label="Prompt input"
+                role="textbox"
+                className={`input w-full resize-none min-h-[42px] max-h-40 transition-all text-base sm:text-sm ${
+                  isListening ? 'border-red-500/30 ring-1 ring-red-500/20' : ''
+                }`}
+              />
+              {input.length > MAX_PROMPT_LENGTH * 0.8 && (
+                <span className={`absolute bottom-1 right-2 text-[10px] font-mono ${
+                  input.length > MAX_PROMPT_LENGTH * 0.95 ? 'text-red-400' : 'text-gray-600'
+                }`}>
+                  {input.length.toLocaleString()}/{MAX_PROMPT_LENGTH.toLocaleString()}
+                </span>
+              )}
+            </div>
 
             {voiceSupported && (
               <motion.button
@@ -843,6 +872,7 @@ export default function Chat() {
                 onClick={sendCancel}
                 className="p-2.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors min-w-[42px] min-h-[42px] flex items-center justify-center"
                 title="Cancel"
+                aria-label="Cancel current prompt"
               >
                 <StopCircle size={18} />
               </motion.button>
@@ -852,6 +882,7 @@ export default function Chat() {
                 onClick={handleSend}
                 disabled={!input.trim() || !isConnected}
                 className="p-2.5 rounded-xl bg-synapse-600 hover:bg-synapse-700 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-w-[42px] min-h-[42px] flex items-center justify-center"
+                aria-label="Send prompt"
               >
                 <Send size={18} />
               </motion.button>

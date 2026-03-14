@@ -1,4 +1,4 @@
-"""
+﻿"""
 Supabase Realtime integration -- connects the agent to the Synapse cloud.
 
 Handles:
@@ -20,6 +20,7 @@ import json
 import os
 import platform
 import re
+import signal
 import time
 import uuid
 from typing import Any, Callable, Coroutine
@@ -34,7 +35,7 @@ from synapse_agent.tools import discover_all_tools, TOOL_MODELS
 console = Console()
 
 
-# ── Output post-processing ──────────────────────────────────
+# â”€â”€ Output post-processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Copilot CLI (and similar tools) produce extremely verbose output:
 #   - Tool-call banners, file trees, thinking indicators
 #   - Repeated section headers
@@ -47,7 +48,7 @@ _TOOL_BANNER_RE = re.compile(
     r'(?:Running|Calling|Executing|Using)\s+(?:tool|command|action)|'
     r'Tool\s*(?:call|result|output|response)|'
     r'(?:Command|Result|Output)\s*:?\s*$|'
-    r'─{3,}|━{3,}|═{3,}|—{3,}|_{5,}'
+    r'â”€{3,}|â”{3,}|â•{3,}|â€”{3,}|_{5,}'
     r')',
     re.IGNORECASE,
 )
@@ -57,7 +58,7 @@ _JUNK_LINE_RE = re.compile(
     r'^\s*(?:'
     r'[\u2500-\u257F\u2580-\u259F]{3,}|'          # box-drawing lines
     r'[=\-~]{5,}|'                                 # separator lines
-    r'[\s⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●○◐◑◒◓◔◕]+$|'             # spinners
+    r'[\sâ ‹â ™â ¹â ¸â ¼â ´â ¦â §â ‡â â—â—‹â—â—‘â—’â—“â—”â—•]+$|'             # spinners
     r'\x1b|'                                        # leftover escapes
     r'Thinking\.{0,3}$|Working\.{0,3}$'
     r')',
@@ -71,7 +72,7 @@ def _clean_tool_output(raw: str, tool: str = "") -> str:
 
     - Strips ANSI escapes
     - Removes tool-call banners, separator lines, spinners
-    - Collapses 3+ consecutive blank lines → 1
+    - Collapses 3+ consecutive blank lines â†’ 1
     - Trims leading/trailing whitespace
     """
     text = _strip_ansi(raw)
@@ -213,17 +214,14 @@ class SynapseRelay:
         # Register/update agent in database
         await self._register_agent()
 
-        # Subscribe to the user's Broadcast channel
-        # NOTE: Using public channel (no private: True) because private channels
-        # require RLS policies on realtime.messages which would silently drop
-        # messages between clients. The channel name contains the user UUID
-        # so it is not guessable.
+        # Subscribe to the user's private Broadcast channel.
         channel_name = f"agent:{self._user_id}"
         self._channel = self._supabase.realtime.channel(
             channel_name,
             params={
                 "config": {
                     "broadcast": {"ack": False, "self": False},
+                    "private": True,
                     "presence": {"key": "", "enabled": False},
                 }
             },
@@ -279,6 +277,25 @@ class SynapseRelay:
 
     # ---- Event Handlers ----
 
+    async def _enforce_request_policy(self) -> tuple[bool, str | None]:
+        """Enforce server-side subscription and rate-limit policy via RPC."""
+        if not self._supabase or not self._user_id:
+            return False, "Agent auth/session unavailable"
+
+        try:
+            response = await self._supabase.rpc(
+                "enforce_rate_limit",
+                {"p_user_id": self._user_id},
+            ).execute()
+            data = (response.data or {}) if hasattr(response, "data") else {}
+            if isinstance(data, dict) and data.get("allowed") is True:
+                return True, None
+            reason = data.get("reason") if isinstance(data, dict) else None
+            return False, str(reason or "Request denied by server policy")
+        except Exception as exc:
+            # Fail closed to avoid bypassing billing/rate rules.
+            return False, f"Policy check failed: {exc}"
+
     async def _handle_prompt(self, payload: dict) -> None:
         """Handle incoming prompt from web portal."""
         data = payload.get("payload", {})
@@ -290,6 +307,25 @@ class SynapseRelay:
         model = data.get("model")
 
         if not prompt:
+            return
+
+        allowed, deny_reason = await self._enforce_request_policy()
+        if not allowed:
+            if self._channel:
+                await self._channel.send_broadcast(
+                    "result",
+                    {
+                        "conversation_id": conversation_id,
+                        "stdout": "",
+                        "stderr": deny_reason or "Request denied.",
+                        "exit_code": -1,
+                        "duration": 0,
+                        "timed_out": False,
+                        "tool": tool,
+                        "success": False,
+                        "lines_streamed": 0,
+                    },
+                )
             return
 
         model_info = f" [{model}]" if model else ""
@@ -318,7 +354,7 @@ class SynapseRelay:
             model=model,
         )
 
-        # Clean the output — strip CLI noise, spinners, banners
+        # Clean the output â€” strip CLI noise, spinners, banners
         result.stdout = _clean_tool_output(result.stdout, tool)
         if result.stderr:
             result.stderr = _clean_tool_output(result.stderr, tool)
@@ -339,6 +375,21 @@ class SynapseRelay:
 
         icon = "OK" if result.success else "WARN"
         console.print(f"[bold]{icon} Done ({result.duration:.1f}s)[/bold]")
+
+        # Log prompt to database for admin analytics
+        if self._supabase:
+            try:
+                status = "success" if result.success else ("timeout" if result.timed_out else "error")
+                await self._supabase.table("prompt_logs").insert({
+                    "user_id": self._user_id,
+                    "agent_id": self._agent_id,
+                    "tool": tool,
+                    "duration_ms": int(result.duration * 1000),
+                    "exit_code": result.exit_code,
+                    "status": status,
+                }).execute()
+            except Exception:
+                pass  # Non-critical â€” don't break prompt flow
 
     async def _handle_cancel(self, payload: dict) -> None:
         """Handle cancel event."""
@@ -404,6 +455,24 @@ class SynapseRelay:
         timeout = data.get("timeout", 60)
         conversation_id = data.get("conversation_id", "")
 
+        if not self.config.get("shell_enabled", False):
+            if self._channel:
+                await self._channel.send_broadcast(
+                    "result",
+                    {
+                        "conversation_id": conversation_id,
+                        "stdout": "",
+                        "stderr": "Shell execution is disabled by policy.",
+                        "exit_code": -1,
+                        "duration": 0,
+                        "timed_out": False,
+                        "tool": "shell",
+                        "success": False,
+                        "lines_streamed": 0,
+                    },
+                )
+            return
+
         if not command:
             return
 
@@ -430,6 +499,21 @@ class SynapseRelay:
                     **result.to_dict(),
                 },
             )
+
+        # Log shell command to database for analytics
+        if self._supabase:
+            try:
+                status = "success" if result.success else ("timeout" if result.timed_out else "error")
+                await self._supabase.table("prompt_logs").insert({
+                    "user_id": self._user_id,
+                    "agent_id": self._agent_id,
+                    "tool": "shell",
+                    "duration_ms": int(result.duration * 1000),
+                    "exit_code": result.exit_code,
+                    "status": status,
+                }).execute()
+            except Exception:
+                pass  # Non-critical
 
     async def _handle_ping(self, payload: dict) -> None:
         """Respond to ping with agent status."""
@@ -525,6 +609,15 @@ class SynapseRelay:
 
         heartbeat = asyncio.create_task(self._heartbeat_loop())
 
+        # Register OS-level signal handlers for graceful shutdown
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, lambda: asyncio.create_task(self._graceful_shutdown(heartbeat)))
+            except NotImplementedError:
+                # Windows doesn't support add_signal_handler for all signals
+                pass
+
         try:
             # Keep running until interrupted
             while self._running:
@@ -535,6 +628,15 @@ class SynapseRelay:
             self._running = False
             heartbeat.cancel()
             await self._disconnect()
+
+    async def _graceful_shutdown(self, heartbeat: asyncio.Task) -> None:
+        """Handle OS signals for graceful shutdown."""
+        console.print("\n[yellow]Received shutdown signal...[/yellow]")
+        self._running = False
+        heartbeat.cancel()
+        # Cancel any running subprocess
+        await self.bridge.cancel()
+        await self._disconnect()
 
     async def _disconnect(self) -> None:
         """Clean shutdown -- mark agent offline, unsubscribe."""
@@ -557,3 +659,4 @@ class SynapseRelay:
                 pass
 
         console.print("[green]Agent stopped[/green]")
+

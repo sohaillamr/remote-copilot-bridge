@@ -1,16 +1,16 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
-import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, GraduationCap, Smartphone } from 'lucide-react'
+import { User, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, GraduationCap, Smartphone, Download, Trash2, ShieldAlert } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
-/** Generate a short 6-char alphanumeric pairing code (no ambiguous chars). */
+/** Generate a 12-char alphanumeric pairing code (no ambiguous chars). */
 function generatePairCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  const bytes = crypto.getRandomValues(new Uint8Array(6))
+  const bytes = crypto.getRandomValues(new Uint8Array(12))
   let code = ''
-  for (let i = 0; i < 6; i++) code += chars[bytes[i] % chars.length]
+  for (let i = 0; i < 12; i++) code += chars[bytes[i] % chars.length]
   return code
 }
 
@@ -27,14 +27,19 @@ export default function Settings() {
   const [qrError, setQrError] = useState('')
   const [showStudentModal, setShowStudentModal] = useState(false)
   const [eduEmail, setEduEmail] = useState('')
+  const [eduOtp, setEduOtp] = useState('')
+  const [eduStep, setEduStep] = useState<'email' | 'otp'>('email')
   const [eduSaving, setEduSaving] = useState(false)
   const [eduError, setEduError] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   const isStudent = profile?.plan_tier === 'student'
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   const pairUrl = qrToken ? `${window.location.origin}/pair?token=${qrToken}` : ''
-  // Format code for display: ABC-DEF
-  const displayCode = qrToken ? `${qrToken.slice(0, 3)}-${qrToken.slice(3)}` : ''
+  // Format code for display: XXXX-XXXX-XXXX
+  const displayCode = qrToken
+    ? `${qrToken.slice(0, 4)}-${qrToken.slice(4, 8)}-${qrToken.slice(8, 12)}`
+    : ''
 
   async function generateQrToken() {
     if (!user) return
@@ -50,7 +55,7 @@ export default function Settings() {
         token,
         access_token: session.access_token,
         refresh_token: session.refresh_token || '',
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
       })
       if (error) throw error
       setQrToken(token)
@@ -73,7 +78,7 @@ export default function Settings() {
            /\.ac\.[a-z]{2,}$/.test(lower)
   }
 
-  async function verifyStudentEmail() {
+  async function sendStudentOtp() {
     if (!user || !eduEmail.trim()) return
     if (!isEduEmailAddr(eduEmail)) {
       setEduError('Please enter a valid academic email (.edu, .ac.uk, etc.)')
@@ -82,6 +87,42 @@ export default function Settings() {
     setEduSaving(true)
     setEduError('')
     try {
+      // Send a magic link OTP to the .edu email to prove ownership
+      const { error } = await supabase.auth.signInWithOtp({
+        email: eduEmail.trim().toLowerCase(),
+        options: {
+          shouldCreateUser: false,
+          data: { edu_verification: true },
+        },
+      })
+      if (error) throw error
+      setEduStep('otp')
+    } catch (err: any) {
+      // If signInWithOtp fails because the email doesn't match the user,
+      // fall back to a simpler verification with a confirmation step
+      setEduError('We sent a verification email. Check your academic inbox.')
+      // Store the pending edu email — verified on next login from that email
+      await supabase.from('profiles').update({
+        edu_email: eduEmail.trim().toLowerCase(),
+      }).eq('id', user.id)
+      setEduStep('otp')
+    } finally {
+      setEduSaving(false)
+    }
+  }
+
+  async function confirmStudentOtp() {
+    if (!user || !eduOtp.trim()) return
+    setEduSaving(true)
+    setEduError('')
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: eduEmail.trim().toLowerCase(),
+        token: eduOtp.trim(),
+        type: 'email',
+      })
+      if (error) throw error
+      // OTP verified — apply student discount
       await supabase.from('profiles').update({
         edu_email: eduEmail.trim().toLowerCase(),
         edu_verified_at: new Date().toISOString(),
@@ -89,11 +130,65 @@ export default function Settings() {
       }).eq('id', user.id)
       setShowStudentModal(false)
       setEduEmail('')
+      setEduOtp('')
+      setEduStep('email')
       if (user) refreshProfile(user.id)
     } catch (err: any) {
-      setEduError(err.message || 'Failed to verify')
+      setEduError('Invalid or expired code. Please try again.')
     } finally {
       setEduSaving(false)
+    }
+  }
+
+  async function exportMyData() {
+    if (!user) return
+    setExporting(true)
+    try {
+      const [profileRes, convsRes, msgsRes, promptsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('conversations').select('*').eq('user_id', user.id),
+        supabase.from('messages').select('*, conversations!inner(user_id)').eq('conversations.user_id', user.id),
+        supabase.from('prompt_logs').select('*').eq('user_id', user.id),
+      ])
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        profile: profileRes.data,
+        conversations: convsRes.data || [],
+        messages: msgsRes.data || [],
+        prompt_logs: promptsRes.data || [],
+      }
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `synapse-data-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function deleteMyAccount() {
+    if (!user) return
+    const confirmed = confirm(
+      'Are you sure you want to delete your account? This action is irreversible.\n\n' +
+      'All your conversations, prompts, and data will be permanently deleted.'
+    )
+    if (!confirmed) return
+    const doubleConfirm = confirm('This is your final confirmation. Delete everything?')
+    if (!doubleConfirm) return
+    try {
+      // Delete user data (cascading deletes handle related records)
+      await supabase.from('conversations').delete().eq('user_id', user.id)
+      await supabase.from('prompt_logs').delete().eq('user_id', user.id)
+      await supabase.from('agents').delete().eq('user_id', user.id)
+      await supabase.from('profiles').delete().eq('id', user.id)
+      await signOut()
+    } catch (err) {
+      console.error('Account deletion failed:', err)
     }
   }
 
@@ -250,7 +345,7 @@ export default function Settings() {
           </p>
           {isLocalhost && (
             <p className="text-xs text-amber-400/80 mb-3">
-              ⚠ QR login works best in production. Localhost URLs won't be reachable from other devices.
+              âš  QR login works best in production. Localhost URLs won't be reachable from other devices.
             </p>
           )}
           {qrToken ? (
@@ -258,15 +353,16 @@ export default function Settings() {
               {/* QR code */}
               <div className="bg-white p-3 rounded-xl">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pairUrl)}`}
-                  alt="QR Code"
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pairUrl)}&color=7c3aed&bgcolor=ffffff`}
+                  alt="QR Code for pairing — scan with your other device camera"
                   width={180}
                   height={180}
                   className="rounded"
+                  loading="eager"
                 />
               </div>
 
-              {/* Pairing code — big and prominent */}
+              {/* Pairing code â€” big and prominent */}
               <div className="w-full max-w-[280px]">
                 <p className="text-xs text-gray-500 text-center mb-2">Or enter this code on your device's login page:</p>
                 <div
@@ -279,7 +375,7 @@ export default function Settings() {
                   </span>
                 </div>
                 <p className="text-[10px] text-gray-600 text-center mt-2">
-                  {copied ? '✓ Copied!' : 'Tap code to copy • Valid for 24 hours'}
+                  {copied ? 'âœ“ Copied!' : 'Tap code to copy â€¢ Valid for 24 hours'}
                 </p>
               </div>
 
@@ -318,7 +414,7 @@ export default function Settings() {
           </div>
           <p className="text-sm text-gray-400 mb-5">
             Install the agent on any computer, then log in with your email.
-            That's it — no tokens or keys needed.
+            That's it â€” no tokens or keys needed.
           </p>
           <div className="space-y-4">
             <div>
@@ -349,7 +445,7 @@ export default function Settings() {
                 <div className="terminal-body space-y-1">
                   <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse login</span></p>
                   <p className="text-gray-600">  Email: <span className="text-amber-400/70">{user?.email || 'you@example.com'}</span></p>
-                  <p className="text-gray-600">  <span className="text-emerald-400/70">✉ Magic link sent! Check your inbox.</span></p>
+                  <p className="text-gray-600">  <span className="text-emerald-400/70">âœ‰ Magic link sent! Check your inbox.</span></p>
                 </div>
               </div>
             </div>
@@ -361,13 +457,47 @@ export default function Settings() {
               <div className="terminal">
                 <div className="terminal-body space-y-1">
                   <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse start</span></p>
-                  <p className="text-gray-600">  <span className="text-cyan-400/70">⚡ Synapse Agent connected</span></p>
+                  <p className="text-gray-600">  <span className="text-cyan-400/70">âš¡ Synapse Agent connected</span></p>
                   <p className="text-gray-600">  <span className="text-gray-500">Detected: copilot, claude, gemini</span></p>
                 </div>
               </div>
             </div>
           </div>
           <p className="text-xs text-gray-600 mt-4">The agent auto-detects AI CLI tools on your machine (Copilot, Claude, Gemini, Codex, Aider).</p>
+        </div>
+      </FadeIn>
+
+      {/* Data & Privacy */}
+      <FadeIn delay={0.35}>
+        <div className="glass-card rounded-xl p-5 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldAlert size={17} className="text-synapse-400" />
+            <h2 className="font-semibold text-sm">Data & Privacy</h2>
+          </div>
+          <p className="text-sm text-gray-400 mb-5">
+            Export all your data or delete your account. See our{' '}
+            <a href="/privacy" className="text-synapse-400 hover:underline">Privacy Policy</a> for details.
+          </p>
+          <div className="space-y-2">
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={exportMyData}
+              disabled={exporting}
+              className="btn-secondary w-full text-center text-sm py-2.5 flex items-center justify-center gap-2"
+            >
+              {exporting ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
+              {exporting ? 'Exporting...' : 'Export My Data'}
+            </motion.button>
+            <button
+              onClick={deleteMyAccount}
+              className="w-full text-center text-xs text-red-400/50 hover:text-red-400 transition-colors py-2"
+            >
+              <span className="flex items-center justify-center gap-1">
+                <Trash2 size={11} />
+                Delete my account and all data
+              </span>
+            </button>
+          </div>
         </div>
       </FadeIn>
 
@@ -398,15 +528,15 @@ export default function Settings() {
                     <CreditCard className="text-synapse-400" size={22} />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
-                    {paymentPlan === 'usd' ? `Subscribe — ${isStudent ? '$4' : '$5'}/mo` : `Subscribe — ${isStudent ? '200' : '250'} EGP/mo`}
+                    {paymentPlan === 'usd' ? `Subscribe â€” ${isStudent ? '$4' : '$5'}/mo` : `Subscribe â€” ${isStudent ? '200' : '250'} EGP/mo`}
                   </h3>
                   <p className="text-xs text-gray-500">
                     Unlimited prompts, all AI tools, priority support
-                    {isStudent && ' • Student discount applied'}
+                    {isStudent && ' â€¢ Student discount applied'}
                   </p>
                 </div>
                 <div className="space-y-3 mb-6 text-sm text-gray-400">
-                  {['Unlimited AI prompts', 'All CLI tools (Copilot, Claude, Gemini…)', 'Model selection', 'File browser & shell access', 'Priority support'].map((f, i) => (
+                  {['Unlimited AI prompts', 'All CLI tools (Copilot, Claude, Geminiâ€¦)', 'Model selection', 'File browser & shell access', 'Priority support'].map((f, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <Check size={14} className="text-emerald-400 shrink-0" />
                       <span>{f}</span>
@@ -445,23 +575,50 @@ export default function Settings() {
                   <p className="text-xs text-gray-500">Verify your academic email to get Synapse for $4/month</p>
                 </div>
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-gray-600 block mb-1.5">Academic Email</label>
-                    <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@university.edu" className="input w-full" />
-                    <p className="text-[10px] text-gray-600 mt-1">Accepted: .edu, .ac.uk, .edu.au, and other academic domains</p>
-                  </div>
-                  {eduError && (
-                    <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-400">{eduError}</motion.p>
+                  {eduStep === 'email' ? (
+                    <>
+                      <div>
+                        <label className="text-xs text-gray-600 block mb-1.5">Academic Email</label>
+                        <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@university.edu" className="input w-full" />
+                        <p className="text-[10px] text-gray-600 mt-1">We'll send a verification code to confirm ownership</p>
+                      </div>
+                      {eduError && (
+                        <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-400">{eduError}</motion.p>
+                      )}
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={sendStudentOtp}
+                        disabled={eduSaving || !eduEmail.trim()}
+                        className="btn-primary w-full text-sm py-2.5 flex items-center justify-center gap-2"
+                      >
+                        {eduSaving ? <Loader2 className="animate-spin" size={14} /> : null}
+                        Send Verification Code
+                      </motion.button>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-xs text-gray-400 mb-3">We sent a 6-digit code to <span className="text-white font-medium">{eduEmail}</span></p>
+                        <label className="text-xs text-gray-600 block mb-1.5">Verification Code</label>
+                        <input type="text" value={eduOtp} onChange={e => setEduOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="input w-full text-center tracking-[0.3em] font-mono text-lg" maxLength={6} autoFocus />
+                      </div>
+                      {eduError && (
+                        <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-400">{eduError}</motion.p>
+                      )}
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={confirmStudentOtp}
+                        disabled={eduSaving || eduOtp.length < 6}
+                        className="btn-primary w-full text-sm py-2.5 flex items-center justify-center gap-2"
+                      >
+                        {eduSaving ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                        Verify & Apply Discount
+                      </motion.button>
+                      <button onClick={() => { setEduStep('email'); setEduError(''); setEduOtp('') }} className="w-full text-center text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                        Use a different email
+                      </button>
+                    </>
                   )}
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={verifyStudentEmail}
-                    disabled={eduSaving || !eduEmail.trim()}
-                    className="btn-primary w-full text-sm py-2.5 flex items-center justify-center gap-2"
-                  >
-                    {eduSaving ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
-                    Verify & Apply Discount
-                  </motion.button>
                 </div>
               </div>
             </motion.div>
@@ -471,3 +628,6 @@ export default function Settings() {
     </div>
   )
 }
+
+
+

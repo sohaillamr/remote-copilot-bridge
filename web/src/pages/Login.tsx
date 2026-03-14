@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Mail, ArrowLeft, Github, Loader2, Smartphone } from 'lucide-react'
+import { Zap, Mail, ArrowLeft, Github, Loader2, Smartphone, ShieldCheck, Globe, Lock } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { saveDeviceRefreshToken } from '../lib/persistentStorage'
@@ -50,9 +50,8 @@ export default function LoginPage() {
 
   const handlePairCode = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Normalise: strip dashes/spaces, uppercase
     const code = pairCode.replace(/[\s-]/g, '').toUpperCase()
-    if (code.length < 4) return
+    if (code.length !== 12) return
     setPairingBusy(true)
     setPairError('')
     try {
@@ -61,14 +60,12 @@ export default function LoginPage() {
       if (data?.error) throw new Error(data.error)
       if (!data?.access_token || !data?.refresh_token) throw new Error('Invalid token response')
 
-      // Establish session
       const { error: setErr } = await supabase.auth.setSession({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
       })
       if (setErr) throw setErr
 
-      // Get this device's OWN independent tokens
       const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession()
       if (refreshErr) {
         await saveDeviceRefreshToken(data.refresh_token)
@@ -76,7 +73,6 @@ export default function LoginPage() {
         await saveDeviceRefreshToken(refreshed.session.refresh_token)
       }
 
-      // Update the stored tokens in device_tokens so next claim gets fresh ones
       try {
         const freshSession = refreshed?.session
         if (freshSession) {
@@ -97,18 +93,19 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" role="status" aria-label="Loading">
         <Loader2 className="animate-spin text-synapse-400" size={32} />
+        <span className="sr-only">Loading authentication...</span>
       </div>
     )
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4">
+    <div className="relative min-h-screen flex items-center justify-center p-4" role="main" aria-label="Sign in">
       <GridBackground />
 
       {/* Radial glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-synapse-600/[0.06] rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-synapse-600/[0.06] rounded-full blur-[100px] pointer-events-none" aria-hidden="true" />
 
       {/* Back link */}
       <motion.div
@@ -117,7 +114,7 @@ export default function LoginPage() {
         transition={{ delay: 0.1 }}
         className="absolute top-6 left-6 z-20"
       >
-        <Link to="/" className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors text-sm group">
+        <Link to="/" className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors text-sm group" aria-label="Back to landing page">
           <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
           Back
         </Link>
@@ -127,8 +124,8 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-10">
           <div className="relative">
-            <Zap className="text-synapse-400" size={24} />
-            <div className="absolute inset-0 bg-synapse-500/30 blur-lg rounded-full" />
+            <Zap className="text-synapse-400" size={24} aria-hidden="true" />
+            <div className="absolute inset-0 bg-synapse-500/30 blur-lg rounded-full" aria-hidden="true" />
           </div>
           <span className="text-xl font-bold tracking-tight">Synapse</span>
         </div>
@@ -141,11 +138,11 @@ export default function LoginPage() {
           className="relative group"
         >
           {/* Glow border */}
-          <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-synapse-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-synapse-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" aria-hidden="true" />
 
           <div className="relative glass-card rounded-2xl p-8">
             {otpSent ? (
-              <div className="text-center space-y-4">
+              <div className="text-center space-y-4" role="status" aria-live="polite">
                 <div className="w-16 h-16 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto">
                   <Mail className="text-synapse-400" size={28} />
                 </div>
@@ -171,11 +168,12 @@ export default function LoginPage() {
                 </div>
 
                 {/* OAuth buttons */}
-                <div className="space-y-3 mb-6">
+                <div className="space-y-3 mb-6" role="group" aria-label="Social sign-in options">
                   <button
                     onClick={() => handleOAuth('github')}
                     disabled={busy}
-                    className="w-full flex items-center justify-center gap-3 btn-secondary py-3 text-sm"
+                    className="w-full flex items-center justify-center gap-3 btn-secondary py-3 text-sm focus:ring-2 focus:ring-synapse-500/50 focus:ring-offset-2 focus:ring-offset-[#09090b] transition-all"
+                    aria-label="Sign in with GitHub"
                   >
                     <Github size={18} />
                     Continue with GitHub
@@ -183,9 +181,10 @@ export default function LoginPage() {
                   <button
                     onClick={() => handleOAuth('google')}
                     disabled={busy}
-                    className="w-full flex items-center justify-center gap-3 btn-secondary py-3 text-sm"
+                    className="w-full flex items-center justify-center gap-3 btn-secondary py-3 text-sm focus:ring-2 focus:ring-synapse-500/50 focus:ring-offset-2 focus:ring-offset-[#09090b] transition-all"
+                    aria-label="Sign in with Google"
                   >
-                    <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
+                    <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" aria-hidden="true">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -196,28 +195,32 @@ export default function LoginPage() {
                 </div>
 
                 {/* Divider */}
-                <div className="relative flex items-center my-6">
+                <div className="relative flex items-center my-6" role="separator">
                   <div className="flex-grow border-t border-white/5" />
                   <span className="px-3 text-xs text-gray-600 uppercase tracking-wider">or</span>
                   <div className="flex-grow border-t border-white/5" />
                 </div>
 
                 {/* Magic link form */}
-                <form onSubmit={handleOtp} className="space-y-4">
+                <form onSubmit={handleOtp} className="space-y-4" aria-label="Sign in with email">
                   <div>
+                    <label htmlFor="login-email" className="sr-only">Email address</label>
                     <input
+                      id="login-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="input w-full"
+                      className="input w-full focus:ring-2 focus:ring-synapse-500/50 focus:border-synapse-500/30 transition-all"
                       required
+                      autoComplete="email"
+                      aria-describedby={error ? 'login-error' : undefined}
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={busy || !email}
-                    className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2"
+                    className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2 focus:ring-2 focus:ring-synapse-500/50 focus:ring-offset-2 focus:ring-offset-[#09090b]"
                   >
                     {busy ? (
                       <Loader2 className="animate-spin" size={16} />
@@ -230,16 +233,18 @@ export default function LoginPage() {
 
                 {error && (
                   <motion.p
+                    id="login-error"
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-red-400 text-sm mt-4 text-center"
+                    role="alert"
                   >
                     {error}
                   </motion.p>
                 )}
 
                 {/* Pairing Code section */}
-                <div className="relative flex items-center my-6">
+                <div className="relative flex items-center my-6" role="separator">
                   <div className="flex-grow border-t border-white/5" />
                   <span className="px-3 text-xs text-gray-600 uppercase tracking-wider">or</span>
                   <div className="flex-grow border-t border-white/5" />
@@ -249,6 +254,8 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPairCode(!showPairCode)}
                   className="w-full text-center text-sm text-gray-500 hover:text-synapse-400 transition-colors flex items-center justify-center gap-2"
+                  aria-expanded={showPairCode}
+                  aria-controls="pair-code-form"
                 >
                   <Smartphone size={15} />
                   Have a pairing code?
@@ -256,26 +263,31 @@ export default function LoginPage() {
 
                 {showPairCode && (
                   <motion.form
+                    id="pair-code-form"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     onSubmit={handlePairCode}
                     className="mt-4 space-y-3 overflow-hidden"
+                    aria-label="Device pairing"
                   >
                     <p className="text-xs text-gray-500 text-center">
                       Enter the code shown on your desktop's Settings page
                     </p>
+                    <label htmlFor="pair-code-input" className="sr-only">Pairing code</label>
                     <input
+                      id="pair-code-input"
                       type="text"
                       value={pairCode}
                       onChange={(e) => setPairCode(e.target.value.toUpperCase())}
-                      placeholder="ABC-DEF"
-                      maxLength={7}
-                      className="input w-full text-center text-lg font-mono tracking-[0.2em] uppercase"
+                      placeholder="ABCD-EFGH-IJKL"
+                      maxLength={14}
+                      className="input w-full text-center text-lg font-mono tracking-[0.2em] uppercase focus:ring-2 focus:ring-synapse-500/50 focus:border-synapse-500/30 transition-all"
                       autoComplete="off"
+                      aria-describedby={pairError ? 'pair-error' : undefined}
                     />
                     <button
                       type="submit"
-                      disabled={pairingBusy || pairCode.replace(/[\s-]/g, '').length < 4}
+                      disabled={pairingBusy || pairCode.replace(/[\s-]/g, '').length !== 12}
                       className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2"
                     >
                       {pairingBusy ? (
@@ -287,9 +299,11 @@ export default function LoginPage() {
                     </button>
                     {pairError && (
                       <motion.p
+                        id="pair-error"
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-400 text-xs text-center"
+                        role="alert"
                       >
                         {pairError}
                       </motion.p>
@@ -301,11 +315,32 @@ export default function LoginPage() {
           </div>
         </motion.div>
 
-        <p className="text-center text-xs text-gray-600 mt-6">
-          By signing in you agree to our Terms of Service
+        {/* Trust indicators */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="flex items-center justify-center gap-4 sm:gap-6 mt-6 mb-4"
+        >
+          {[
+            { icon: Lock, text: 'TLS Encrypted' },
+            { icon: ShieldCheck, text: 'Open Source Agent' },
+            { icon: Globe, text: 'GDPR Compliant' },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="flex items-center gap-1.5 text-[10px] text-gray-600">
+              <Icon size={12} className="text-gray-600" />
+              {text}
+            </div>
+          ))}
+        </motion.div>
+
+        <p className="text-center text-xs text-gray-600">
+          By signing in you agree to our{' '}
+          <Link to="/terms" className="text-synapse-400/70 hover:text-synapse-400 transition-colors">Terms of Service</Link>
+          {' '}and{' '}
+          <Link to="/privacy" className="text-synapse-400/70 hover:text-synapse-400 transition-colors">Privacy Policy</Link>
         </p>
       </FadeIn>
     </div>
   )
 }
-

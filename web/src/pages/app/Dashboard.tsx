@@ -1,21 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { useRelay } from '../../contexts/AgentRelayContext'
 import { supabase, type Agent } from '../../lib/supabase'
-import { MessageSquare, Wifi, WifiOff, Terminal, Clock, ArrowRight, Zap, Check } from 'lucide-react'
+import {
+  MessageSquare, Wifi, WifiOff, Terminal, Clock, ArrowRight,
+  Zap, Check, Activity, Keyboard, BarChart3, Sparkles,
+} from 'lucide-react'
 import { FadeIn, StaggerContainer, StaggerItem } from '../../components/Animations'
+
+function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    if (value === 0) { setDisplay(0); return }
+    let start = 0
+    const step = Math.ceil(value / (duration / 16))
+    const id = setInterval(() => {
+      start = Math.min(start + step, value)
+      setDisplay(start)
+      if (start >= value) clearInterval(id)
+    }, 16)
+    return () => clearInterval(id)
+  }, [value, duration])
+  return <>{display}</>
+}
 
 export default function Dashboard() {
   const { profile, user } = useAuth()
   const { selectedAgent, selectAgent, detectedTools, agentReachable } = useRelay()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({ conversations: 0, promptsToday: 0, totalPrompts: 0 })
 
-  useEffect(() => {
-    loadAgents()
-  }, [])
+  useEffect(() => { loadAgents(); loadStats() }, [])
 
   async function loadAgents() {
     if (!user) return
@@ -28,29 +46,64 @@ export default function Dashboard() {
     setLoading(false)
   }
 
+  async function loadStats() {
+    if (!user) return
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const [convRes, todayRes, totalRes] = await Promise.all([
+      supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('prompt_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', todayStart.toISOString()),
+      supabase.from('prompt_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    ])
+    setStats({
+      conversations: convRes.count ?? 0,
+      promptsToday: todayRes.count ?? 0,
+      totalPrompts: totalRes.count ?? 0,
+    })
+  }
+
   const isOnline = (agent: Agent) => {
     if (!agent.last_seen_at) return false
-    const diff = Date.now() - new Date(agent.last_seen_at).getTime()
-    return diff < 60_000
+    return Date.now() - new Date(agent.last_seen_at).getTime() < 60_000
   }
+
+  const onlineCount = useMemo(() => agents.filter(isOnline).length, [agents])
 
   const trialDaysLeft = profile?.trial_ends_at
     ? Math.max(0, Math.ceil((new Date(profile.trial_ends_at).getTime() - Date.now()) / 86_400_000))
     : 0
 
+  const greeting = useMemo(() => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  }, [])
+
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 max-w-6xl">
       <FadeIn>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-gray-500 mt-1 text-sm">Welcome back{profile?.display_name ? `, ${profile.display_name}` : ''}.</p>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-gray-500 mt-1 text-sm">
+              {greeting}{profile?.display_name ? `, ${profile.display_name}` : ''}.
+            </p>
+          </div>
+          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+            agentReachable
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+              : 'bg-white/[0.04] text-gray-500 border border-white/[0.06]'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${agentReachable ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+            {agentReachable ? 'Agent Connected' : 'No Agent'}
+          </div>
         </div>
       </FadeIn>
 
-      {/* Trial banner */}
       {profile?.subscription_status === 'trial' && (
         <FadeIn delay={0.1}>
-          <div className="glass-card rounded-xl p-3 sm:p-4 border-amber-500/10">
+          <div className="glass-card rounded-xl p-3 sm:p-4 border-amber-500/10 bg-gradient-to-r from-amber-500/[0.04] to-transparent">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -67,13 +120,38 @@ export default function Dashboard() {
         </FadeIn>
       )}
 
-      {/* Quick actions */}
+      <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {[
+          { label: 'Conversations', value: stats.conversations, icon: MessageSquare, color: 'text-synapse-400', bg: 'bg-synapse-600/10' },
+          { label: 'Prompts Today', value: stats.promptsToday, icon: Activity, color: 'text-blue-400', bg: 'bg-blue-600/10' },
+          { label: 'Total Prompts', value: stats.totalPrompts, icon: BarChart3, color: 'text-emerald-400', bg: 'bg-emerald-600/10' },
+          { label: 'Agents Online', value: onlineCount, icon: Wifi, color: 'text-amber-400', bg: 'bg-amber-600/10' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <StaggerItem key={label}>
+            <div className="glass-card rounded-xl p-3 sm:p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`p-1.5 rounded-lg ${bg}`}>
+                  <Icon className={color} size={14} />
+                </div>
+                <span className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">{label}</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums">
+                <AnimatedNumber value={value} />
+              </p>
+            </div>
+          </StaggerItem>
+        ))}
+      </StaggerContainer>
+
+      <FadeIn delay={0.15}>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h2>
+      </FadeIn>
       <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         {[
-          { to: '/app/chat', icon: MessageSquare, label: 'New Chat', desc: 'Start a prompt session', iconBg: 'bg-synapse-600/10', iconColor: 'text-synapse-400' },
-          { to: '/app/files', icon: Terminal, label: 'File Browser', desc: 'Browse remote files', iconBg: 'bg-blue-600/10', iconColor: 'text-blue-400' },
-          { to: '/app/settings', icon: Clock, label: 'Settings', desc: 'Manage account', iconBg: 'bg-purple-600/10', iconColor: 'text-purple-400' },
-        ].map(({ to, icon: Icon, label, desc, iconBg, iconColor }) => (
+          { to: '/app/chat', icon: MessageSquare, label: 'New Chat', desc: 'Start a prompt session', iconBg: 'bg-synapse-600/10', iconColor: 'text-synapse-400', shortcut: 'Ctrl+2' },
+          { to: '/app/files', icon: Terminal, label: 'File Browser', desc: 'Browse remote files', iconBg: 'bg-blue-600/10', iconColor: 'text-blue-400', shortcut: 'Ctrl+3' },
+          { to: '/app/settings', icon: Clock, label: 'Settings', desc: 'Manage account', iconBg: 'bg-purple-600/10', iconColor: 'text-purple-400', shortcut: 'Ctrl+4' },
+        ].map(({ to, icon: Icon, label, desc, iconBg, iconColor, shortcut }) => (
           <StaggerItem key={to}>
             <Link to={to}>
               <motion.div
@@ -89,7 +167,12 @@ export default function Dashboard() {
                     <p className="font-medium text-sm">{label}</p>
                     <p className="text-xs text-gray-600">{desc}</p>
                   </div>
-                  <ArrowRight className="text-gray-700 group-hover:text-gray-400 transition-colors shrink-0" size={16} />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="hidden sm:inline-flex text-[10px] text-gray-600 bg-white/[0.04] border border-white/[0.06] rounded px-1.5 py-0.5 font-mono">
+                      {shortcut}
+                    </span>
+                    <ArrowRight className="text-gray-700 group-hover:text-gray-400 transition-colors" size={16} />
+                  </div>
                 </div>
               </motion.div>
             </Link>
@@ -97,16 +180,16 @@ export default function Dashboard() {
         ))}
       </StaggerContainer>
 
-      {/* Agent status + detected tools */}
       {agentReachable && detectedTools.length > 0 && (
         <FadeIn delay={0.2}>
           <div className="glass-card rounded-xl p-4 sm:p-5 border-emerald-500/10">
             <div className="flex items-center gap-2 mb-3">
               <div className="relative">
-                <Wifi className="text-emerald-400" size={16} />
+                <Sparkles className="text-emerald-400" size={16} />
                 <div className="absolute inset-0 bg-emerald-400/20 blur-md rounded-full" />
               </div>
-              <span className="text-sm font-medium text-emerald-300">Agent Online</span>
+              <span className="text-sm font-medium text-emerald-300">Detected Tools</span>
+              <span className="text-[10px] text-gray-600 ml-auto font-mono">{detectedTools.length} tools</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {detectedTools.map(t => (
@@ -119,16 +202,21 @@ export default function Dashboard() {
         </FadeIn>
       )}
 
-      {/* Agent List */}
       <FadeIn delay={0.3}>
         <div>
-          <h2 className="text-base font-semibold mb-4 text-gray-300">Your Agents</h2>
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Your Agents</h2>
           {loading ? (
-            <div className="glass-card rounded-xl text-center py-10 text-gray-600 text-sm">Loading agents...</div>
+            <div className="glass-card rounded-xl text-center py-10 space-y-3">
+              <div className="flex justify-center">
+                <div className="w-6 h-6 border-2 border-synapse-500/30 border-t-synapse-400 rounded-full animate-spin" />
+              </div>
+              <p className="text-gray-600 text-sm">Loading agents...</p>
+            </div>
           ) : agents.length === 0 ? (
             <div className="glass-card rounded-xl text-center py-10 sm:py-12">
               <Terminal className="text-gray-700 mx-auto mb-4" size={28} />
-              <p className="text-gray-400 text-sm mb-4">No agents connected yet</p>
+              <p className="text-gray-400 text-sm font-medium mb-1">No agents connected yet</p>
+              <p className="text-gray-600 text-xs mb-5">Set up your first agent in 3 commands</p>
               <div className="terminal max-w-xs mx-auto shadow-glow">
                 <div className="terminal-header">
                   <div className="terminal-dot bg-red-500/80" />
@@ -204,6 +292,18 @@ export default function Dashboard() {
               })}
             </div>
           )}
+        </div>
+      </FadeIn>
+
+      <FadeIn delay={0.4}>
+        <div className="glass-card rounded-xl p-3 sm:p-4 flex items-center gap-3">
+          <Keyboard className="text-gray-600 shrink-0" size={16} />
+          <p className="text-xs text-gray-600">
+            <span className="text-gray-500 font-medium">Shortcuts: </span>
+            <kbd className="font-mono bg-white/[0.04] px-1.5 py-0.5 rounded text-gray-500 text-[10px]">Ctrl+K</kbd>{' '}focus chat
+            <span className="mx-1.5 text-gray-700">&middot;</span>
+            <kbd className="font-mono bg-white/[0.04] px-1.5 py-0.5 rounded text-gray-500 text-[10px]">Ctrl+1-4</kbd>{' '}navigate
+          </p>
         </div>
       </FadeIn>
     </div>

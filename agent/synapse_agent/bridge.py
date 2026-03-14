@@ -11,6 +11,7 @@ import asyncio
 import os
 import platform
 import re
+import shlex
 import subprocess
 import shutil
 import tempfile
@@ -82,7 +83,38 @@ BLOCKED_COMMANDS: list[str] = [
     "rm -rf", "rm -r", "shutdown", "restart",
     "net user", "net localgroup", "reg delete",
     "powershell -enc", "powershell -e ",
+    "curl ", "wget ", "invoke-webrequest",
+    "certutil -urlcache", "bitsadmin /transfer",
+    "nc ", "ncat ", "netcat ",
+    "python -c", "python3 -c", "node -e",
+    "chmod 777", "chmod +s",
+    # Additional dangerous patterns
+    "bash -c", "sh -c", "cmd /c",
+    "mkfs", "dd if=",
+    "| bash", "| sh", "| python",
+    "base64 -d", "base64 --decode",
+    "scp ", "rsync ", "sftp ",
+    "ssh ", "telnet ",
+    "taskkill /f", "kill -9",
+    "reg add", "regedit",
+    "wmic ", "net share",
 ]
+
+# Production default: shell support is restricted to a minimal allowlist.
+ALLOWED_SHELL_PREFIXES: tuple[str, ...] = ("git",)
+_DANGEROUS_SHELL_META_RE = re.compile(r"[|&;><`$()\n\r]")
+
+
+def _is_path_within(child: str, parent: str) -> bool:
+    """Check if a resolved path is within the parent directory."""
+    try:
+        child_resolved = os.path.realpath(os.path.abspath(child))
+        parent_resolved = os.path.realpath(os.path.abspath(parent))
+        return child_resolved == parent_resolved or child_resolved.startswith(
+            parent_resolved + os.sep
+        )
+    except (ValueError, OSError):
+        return False
 
 
 def _build_env() -> dict[str, str]:
@@ -394,7 +426,7 @@ class ToolBridge:
         tool_name: str,
         prompt: str,
         work_dir: str | None = None,
-        timeout: int = 120,
+        timeout: int = 300,
         on_line: Callable[[str], Awaitable[None]] | None = None,
         model: str | None = None,
     ) -> ToolResult:
@@ -439,9 +471,9 @@ class ToolBridge:
 
             # Auto-retry once with more memory if Node.js OOM detected
             if getattr(result, '_oom', False):
-                # Bump heap to 6GB for the retry
-                retry_env_patch = {"NODE_OPTIONS": "--max-old-space-size=6144"}
-                os.environ.update(retry_env_patch)
+                # Bump heap to 6GB for the retry — use subprocess env, don't mutate global
+                prev_node_opts = os.environ.get("NODE_OPTIONS", "")
+                os.environ["NODE_OPTIONS"] = "--max-old-space-size=6144"
                 if on_line:
                     try:
                         await on_line("⚠ Out of memory — retrying with more RAM…")
@@ -449,6 +481,11 @@ class ToolBridge:
                         pass
                 result = await self._stream_execute(cmd, cwd, timeout, on_line)
                 result.tool = tool_name
+                # Restore original NODE_OPTIONS
+                if prev_node_opts:
+                    os.environ["NODE_OPTIONS"] = prev_node_opts
+                else:
+                    os.environ.pop("NODE_OPTIONS", None)
 
             return result
 
@@ -463,7 +500,7 @@ class ToolBridge:
         timeout: int = 60,
         on_line: Callable[[str], Awaitable[None]] | None = None,
     ) -> ToolResult:
-        """Run an arbitrary shell command with blocklist check."""
+        """Run a restricted shell command with blocklist and allowlist checks."""
         # Safety: check blocklist
         cmd_lower = command.lower()
         for pattern in BLOCKED_COMMANDS:
@@ -474,6 +511,36 @@ class ToolBridge:
                     tool="shell",
                 )
 
+        # Safety: reject shell metacharacters that can chain/redirect commands.
+        if _DANGEROUS_SHELL_META_RE.search(command):
+            return ToolResult(
+                stderr="🚫 Blocked: command contains unsafe shell metacharacters.",
+                exit_code=-1,
+                tool="shell",
+            )
+
+        # Safety: allowlist by command prefix.
+        stripped = command.strip()
+        if not stripped:
+            return ToolResult(stderr="Empty shell command.", exit_code=-1, tool="shell")
+
+        lowered = stripped.lower()
+        if not any(lowered == p or lowered.startswith(p + " ") for p in ALLOWED_SHELL_PREFIXES):
+            return ToolResult(
+                stderr="🚫 Blocked: command not in allowlist.",
+                exit_code=-1,
+                tool="shell",
+            )
+
+        # Parse to argv and execute without shell interpolation.
+        try:
+            argv = shlex.split(stripped, posix=(platform.system().lower() != "windows"))
+        except ValueError as exc:
+            return ToolResult(stderr=f"Invalid command syntax: {exc}", exit_code=-1, tool="shell")
+
+        if not argv:
+            return ToolResult(stderr="Empty shell command.", exit_code=-1, tool="shell")
+
         if self._lock.locked():
             return ToolResult(
                 stderr="🔒 Agent is busy. Cancel the current task first.",
@@ -483,7 +550,7 @@ class ToolBridge:
 
         async with self._lock:
             cwd = work_dir or self.work_dir
-            result = await self._stream_execute(command, cwd, timeout, on_line)
+            result = await self._stream_execute(argv, cwd, timeout, on_line)
             result.tool = "shell"
             return result
 
@@ -494,6 +561,10 @@ class ToolBridge:
     def list_files(self, path: str | None = None, max_items: int = 100) -> dict:
         """List directory contents. Returns a serializable dict."""
         target = path or self.work_dir
+
+        # Path confinement: reject paths outside work_dir
+        if not _is_path_within(target, self.work_dir):
+            return {"error": f"Access denied: path is outside the workspace.", "items": []}
 
         if not os.path.isdir(target):
             return {"error": f"Directory not found: {target}", "items": []}
@@ -526,6 +597,10 @@ class ToolBridge:
             "items": items,
         }
 
+    # Maximum file size for read operations (10 MB)
+    MAX_READ_SIZE = 10 * 1024 * 1024  # 10 MB
+    MAX_PROMPT_LENGTH = 16_000  # 16 KB max prompt text
+
     def read_file(
         self,
         file_path: str,
@@ -537,8 +612,20 @@ class ToolBridge:
         if not os.path.isabs(file_path):
             file_path = os.path.join(self.work_dir, file_path)
 
+        # Path confinement: reject paths outside work_dir
+        if not _is_path_within(file_path, self.work_dir):
+            return {"error": "Access denied: path is outside the workspace."}
+
         if not os.path.isfile(file_path):
             return {"error": f"File not found: {file_path}"}
+
+        # Reject files larger than 10 MB
+        try:
+            fsize = os.path.getsize(file_path)
+            if fsize > self.MAX_READ_SIZE:
+                return {"error": f"File too large ({fsize / 1048576:.1f} MB). Max is 10 MB."}
+        except OSError:
+            pass
 
         try:
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
@@ -579,3 +666,5 @@ class ToolBridge:
                 pass
             return True
         return False
+
+

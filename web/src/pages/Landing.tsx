@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,7 +10,7 @@ import {
 import GridBackground from '../components/GridBackground'
 import { FadeIn, StaggerContainer, StaggerItem, GlowCard, MagneticButton } from '../components/Animations'
 
-// ── Data ─────────────────────────────────────────────────
+// â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const tools = [
   { name: 'GitHub Copilot', color: 'from-blue-500 to-cyan-400' },
@@ -24,7 +24,7 @@ const capabilities = [
   {
     icon: Cpu,
     title: 'Multi-Model Support',
-    desc: 'Run Copilot, Claude, Gemini, Codex, or Aider — all from one interface. Switch models per prompt.',
+    desc: 'Run Copilot, Claude, Gemini, Codex, or Aider â€” all from one interface. Switch models per prompt.',
   },
   {
     icon: Radio,
@@ -34,7 +34,7 @@ const capabilities = [
   {
     icon: ScanSearch,
     title: 'Auto-Detection',
-    desc: 'Run synapse start — it finds every AI CLI installed on your machine automatically.',
+    desc: 'Run synapse start â€” it finds every AI CLI installed on your machine automatically.',
   },
   {
     icon: Mic,
@@ -44,7 +44,7 @@ const capabilities = [
   {
     icon: MonitorSmartphone,
     title: 'File Browser & Shell',
-    desc: 'Browse your project files, read code, and run shell commands — all from your phone.',
+    desc: 'Browse your project files, read code, and run shell commands â€” all from your phone.',
   },
   {
     icon: Code2,
@@ -64,34 +64,31 @@ const steps = [
   {
     icon: Globe,
     title: 'Open the Portal',
-    desc: 'Log in from any device — phone, tablet, or another PC. Pick your tool and start prompting.',
+    desc: 'Log in from any device â€” phone, tablet, or another PC. Pick your tool and start prompting.',
     gradient: 'from-blue-500/20 to-cyan-500/20',
-    code: 'synapse.dev/app/chat',
+    code: 'synapse-green.vercel.app/app/chat',
   },
   {
     icon: Shield,
     title: 'AI Runs Locally',
     desc: 'Your prompts relay to your machine. AI runs with your files, your API keys, your context.',
     gradient: 'from-emerald-500/20 to-green-500/20',
-    code: 'End-to-end encrypted relay',
+    code: 'TLS-encrypted relay via Supabase',
   },
 ]
 
-const testimonials = [
+const useCases = [
   {
-    name: 'Ahmed K.',
-    role: 'CS Senior, SAMS',
-    text: 'I debug my graduation project from the metro now. Open Synapse on my phone, ask Copilot to fix the bug, done before I reach campus.',
+    title: 'Code from the Commute',
+    desc: 'Debug your project from the metro. Open Synapse on your phone, ask Copilot to fix the bug, done before you reach campus.',
   },
   {
-    name: 'Sara M.',
-    role: 'Backend Developer',
-    text: 'The voice input is a game-changer. I speak my prompt while cooking and my laptop executes the code. Wild.',
+    title: 'Voice-First Workflow',
+    desc: 'Speak your prompt while cooking â€” your laptop executes the code. No keyboard needed, just your voice and your AI tools.',
   },
   {
-    name: 'Omar T.',
-    role: 'Full-Stack Engineer',
-    text: 'I was skeptical about security, but the agent runs locally and nothing leaves my machine. Fully encrypted relay.',
+    title: 'Zero Trust Security',
+    desc: 'Your agent runs locally and nothing leaves your machine. Fully encrypted relay â€” we never see your code.',
   },
 ]
 
@@ -106,7 +103,7 @@ const perks = [
   'Priority support',
 ]
 
-// ── Pip Install Copy Block ───────────────────────────────
+// â”€â”€ Pip Install Copy Block â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function PipCopyBlock() {
   const [copied, setCopied] = useState(false)
@@ -132,7 +129,7 @@ function PipCopyBlock() {
   )
 }
 
-// ── Demo Animation ───────────────────────────────────────
+// â”€â”€ Demo Animation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function DemoAnimation() {
   return (
@@ -154,7 +151,7 @@ function DemoAnimation() {
             className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2"
           >
             <p className="text-xs text-gray-400 font-mono">
-              <span className="text-emerald-400">✓</span> Total: 2,847 lines across 23 files
+              <span className="text-emerald-400">âœ“</span> Total: 2,847 lines across 23 files
             </p>
           </motion.div>
         </div>
@@ -181,7 +178,7 @@ function DemoAnimation() {
             transition={{ delay: 0.5 }}
             className="text-gray-500"
           >
-            <span className="text-synapse-400">⚡</span> Synapse Agent running...
+            <span className="text-synapse-400">âš¡</span> Synapse Agent running...
           </motion.p>
           <motion.p
             initial={{ opacity: 0 }}
@@ -189,7 +186,7 @@ function DemoAnimation() {
             transition={{ delay: 0.8 }}
             className="text-gray-500"
           >
-            <span className="text-cyan-400">→</span> Prompt received
+            <span className="text-cyan-400">â†’</span> Prompt received
           </motion.p>
           <motion.p
             initial={{ opacity: 0 }}
@@ -205,7 +202,7 @@ function DemoAnimation() {
             transition={{ delay: 1.5 }}
             className="text-emerald-400"
           >
-            ✓ Result sent to phone
+            âœ“ Result sent to phone
           </motion.p>
         </div>
       </div>
@@ -213,7 +210,7 @@ function DemoAnimation() {
   )
 }
 
-// ── Pricing Section with Monthly/Yearly Toggle ───────────
+// â”€â”€ Pricing Section with Monthly/Yearly Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function PricingSection() {
   const [yearly, setYearly] = useState(false)
@@ -278,7 +275,7 @@ function PricingSection() {
                       <span className="text-gray-500">/{yearly ? 'year' : 'month'}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {yearly ? '2,400 EGP/year • save 600 EGP' : '250 EGP/month'}
+                      {yearly ? '2,400 EGP/year â€¢ save 600 EGP' : '250 EGP/month'}
                     </p>
                   </motion.div>
                 </AnimatePresence>
@@ -296,7 +293,7 @@ function PricingSection() {
               </ul>
 
               <MagneticButton className="w-full">
-                <Link to="/login" className="btn-primary w-full text-center block py-3.5 text-base">
+                <Link to="/login" aria-label="Get started with Synapse" className="btn-primary w-full text-center block py-3.5 text-base">
                   Start 7-Day Free Trial
                 </Link>
               </MagneticButton>
@@ -345,7 +342,7 @@ function PricingSection() {
                       <span className="text-gray-500">/{yearly ? 'year' : 'month'}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {yearly ? '1,920 EGP/year • save 480 EGP' : '200 EGP/month • .edu required'}
+                      {yearly ? '1,920 EGP/year â€¢ save 480 EGP' : '200 EGP/month â€¢ .edu required'}
                     </p>
                   </motion.div>
                 </AnimatePresence>
@@ -386,14 +383,14 @@ function PricingSection() {
   )
 }
 
-// ── Main Landing Page ────────────────────────────────────
+// â”€â”€ Main Landing Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <GridBackground />
 
-      {/* ─── Navbar (simplified — logo + single CTA) ─── */}
+      {/* â”€â”€â”€ Navbar (simplified â€” logo + single CTA) â”€â”€â”€ */}
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -409,14 +406,14 @@ export default function LandingPage() {
             <span className="text-lg font-bold tracking-tight">Synapse</span>
           </Link>
           <MagneticButton>
-            <Link to="/login" className="btn-primary text-sm px-5 py-2">
+            <Link to="/login" aria-label="Get started with Synapse" className="btn-primary text-sm px-5 py-2">
               Get Started <ArrowRight size={14} className="ml-1 inline" />
             </Link>
           </MagneticButton>
         </div>
       </motion.nav>
 
-      {/* ─── Hero ─── */}
+      {/* â”€â”€â”€ Hero â”€â”€â”€ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-12 sm:pb-20 text-center">
         <FadeIn delay={0.1}>
           <div className="badge-synapse mb-5 sm:mb-6 mx-auto">
@@ -453,7 +450,7 @@ export default function LandingPage() {
         <FadeIn delay={0.55}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <MagneticButton>
-              <Link to="/login" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2.5 w-full sm:w-auto justify-center">
+              <Link to="/login" aria-label="Get started with Synapse" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2.5 w-full sm:w-auto justify-center">
                 Start Free Trial
                 <ArrowRight size={16} />
               </Link>
@@ -475,7 +472,7 @@ export default function LandingPage() {
 
       <div className="section-divider max-w-5xl mx-auto" />
 
-      {/* ─── Supported Tools Strip ─── */}
+      {/* â”€â”€â”€ Supported Tools Strip â”€â”€â”€ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <FadeIn>
           <p className="text-center text-xs sm:text-sm text-gray-500 uppercase tracking-widest mb-6 sm:mb-8">Works with your favorite AI CLI tools</p>
@@ -498,7 +495,7 @@ export default function LandingPage() {
 
       <div className="section-divider max-w-5xl mx-auto" />
 
-      {/* ─── How it Works ─── */}
+      {/* â”€â”€â”€ How it Works â”€â”€â”€ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <FadeIn>
           <div className="text-center mb-10 sm:mb-16">
@@ -527,7 +524,7 @@ export default function LandingPage() {
 
       <div className="section-divider max-w-5xl mx-auto" />
 
-      {/* ─── Capabilities Grid ─── */}
+      {/* â”€â”€â”€ Capabilities Grid â”€â”€â”€ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <FadeIn>
           <div className="text-center mb-10 sm:mb-14">
@@ -552,14 +549,14 @@ export default function LandingPage() {
 
       <div className="section-divider max-w-5xl mx-auto" />
 
-      {/* ─── Trust & Security ─── */}
+      {/* â”€â”€â”€ Trust & Security â”€â”€â”€ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <FadeIn>
           <div className="text-center mb-10 sm:mb-14">
             <p className="text-sm text-synapse-400 uppercase tracking-widest mb-3">Built for Developers, by Developers</p>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight">Security you can trust</h2>
             <p className="text-gray-400 text-sm sm:text-base mt-4 max-w-2xl mx-auto">
-              Your code never leaves your machine. We relay prompts — nothing more.
+              Your code never leaves your machine. We relay prompts â€” nothing more.
             </p>
           </div>
         </FadeIn>
@@ -571,10 +568,10 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
                   <Lock className="text-emerald-400" size={22} />
                 </div>
-                <h3 className="text-base font-semibold">End-to-End Encrypted</h3>
+                <h3 className="text-base font-semibold">Encrypted in Transit</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">
-                  Your prompts and code are encrypted in transit via Supabase Realtime.
-                  We are the bridge, not the observer. We never see your code.
+                  Your prompts and code are encrypted in transit via TLS and Supabase Realtime.
+                  We relay, not store. Your code stays on your machine.
                 </p>
               </div>
             </GlowCard>
@@ -605,8 +602,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-400 leading-relaxed">
                   Synapse only accesses the directory you run it from.
                   Stop the agent anytime with{' '}
-                  <code className="text-amber-300/80 bg-white/[0.04] px-1 rounded text-xs">Ctrl+C</code>{' '}
-                  or <code className="text-amber-300/80 bg-white/[0.04] px-1 rounded text-xs">synapse stop</code>.
+                  <code className="text-amber-300/80 bg-white/[0.04] px-1 rounded text-xs">Ctrl+C</code>.
                 </p>
               </div>
             </GlowCard>
@@ -616,31 +612,23 @@ export default function LandingPage() {
 
       <div className="section-divider max-w-5xl mx-auto" />
 
-      {/* ─── Social Proof ─── */}
+      {/* â”€â”€â”€ Use Cases â”€â”€â”€ */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <FadeIn>
           <div className="text-center mb-10 sm:mb-14">
-            <p className="text-sm text-synapse-400 uppercase tracking-widest mb-3">Testimonials</p>
+            <p className="text-sm text-synapse-400 uppercase tracking-widest mb-3">Use Cases</p>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight">
-              Developers love it
+              How developers use Synapse
             </h2>
           </div>
         </FadeIn>
 
         <StaggerContainer className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 max-w-5xl mx-auto">
-          {testimonials.map((t) => (
-            <StaggerItem key={t.name}>
+          {useCases.map((uc) => (
+            <StaggerItem key={uc.title}>
               <div className="glass-card rounded-2xl p-5 sm:p-6">
-                <p className="text-sm text-gray-300 leading-relaxed mb-4 italic">"{t.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-synapse-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-                    {t.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{t.name}</p>
-                    <p className="text-xs text-gray-500">{t.role}</p>
-                  </div>
-                </div>
+                <h3 className="text-sm font-semibold text-white mb-2">{uc.title}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed">{uc.desc}</p>
               </div>
             </StaggerItem>
           ))}
@@ -649,10 +637,10 @@ export default function LandingPage() {
 
       <div className="section-divider max-w-5xl mx-auto" />
 
-      {/* ─── Pricing ─── */}
+      {/* â”€â”€â”€ Pricing â”€â”€â”€ */}
       <PricingSection />
 
-      {/* ─── Final CTA ─── */}
+      {/* â”€â”€â”€ Final CTA â”€â”€â”€ */}
       <section className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
         <FadeIn>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4">
@@ -663,7 +651,7 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <MagneticButton>
-              <Link to="/login" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2.5 w-full sm:w-auto justify-center">
+              <Link to="/login" aria-label="Get started with Synapse" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2.5 w-full sm:w-auto justify-center">
                 Get Started Free
                 <ArrowRight size={16} />
               </Link>
@@ -675,19 +663,22 @@ export default function LandingPage() {
         </FadeIn>
       </section>
 
-      {/* ─── Footer ─── */}
+      {/* â”€â”€â”€ Footer â”€â”€â”€ */}
       <div className="section-divider" />
-      <footer className="relative z-10 py-8 sm:py-10 px-4">
+      <footer className="relative z-10 py-8 sm:py-10 px-4" aria-label="Site footer">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Zap className="text-synapse-500" size={16} />
             <span className="text-sm font-semibold text-gray-400">Synapse</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-gray-600">
-            <span>&copy; 2025 Synapse. All rights reserved.</span>
+            <span>&copy; 2026 Synapse. All rights reserved.</span>
+            <Link to="/terms" className="hover:text-gray-400 transition-colors">Terms</Link>
+            <Link to="/privacy" className="hover:text-gray-400 transition-colors">Privacy</Link>
           </div>
         </div>
       </footer>
     </div>
   )
 }
+

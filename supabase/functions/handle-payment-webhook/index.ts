@@ -51,12 +51,15 @@ async function handleLemonSqueezy(req: Request): Promise<Response> {
 
   // Verify HMAC-SHA256 signature
   const signature = req.headers.get("X-Signature") || "";
-  if (LEMONSQUEEZY_SECRET) {
-    const isValid = await verifyHmacSha256(body, signature, LEMONSQUEEZY_SECRET);
-    if (!isValid) {
-      console.error("Invalid Lemon Squeezy signature");
-      return new Response("Invalid signature", { status: 403 });
-    }
+  if (!LEMONSQUEEZY_SECRET) {
+    console.error("Missing LEMONSQUEEZY_WEBHOOK_SECRET");
+    return new Response("Webhook secret not configured", { status: 500 });
+  }
+
+  const isValid = await verifyHmacSha256(body, signature, LEMONSQUEEZY_SECRET);
+  if (!isValid) {
+    console.error("Invalid Lemon Squeezy signature");
+    return new Response("Invalid signature", { status: 403 });
   }
 
   const payload = JSON.parse(body);
@@ -186,15 +189,30 @@ async function handleLemonSqueezy(req: Request): Promise<Response> {
 
 async function handlePaymob(req: Request): Promise<Response> {
   const body = await req.text();
-  const payload = JSON.parse(body);
-
-  // Paymob uses HMAC-SHA512 in the query parameter or header
-  const hmac = new URL(req.url).searchParams.get("hmac") || "";
-  if (PAYMOB_SECRET && hmac) {
-    // Paymob HMAC verification uses a specific concatenation order
-    // Simplified — implement Paymob's exact HMAC spec in production
-    console.log("Paymob webhook received (HMAC verification enabled)");
+  if (!PAYMOB_SECRET) {
+    console.error("Missing PAYMOB_HMAC_SECRET");
+    return new Response("Webhook secret not configured", { status: 500 });
   }
+
+  // Paymob sends signature in query param `hmac` and may also include headers.
+  const signature =
+    new URL(req.url).searchParams.get("hmac") ||
+    req.headers.get("hmac") ||
+    req.headers.get("x-hmac") ||
+    "";
+
+  if (!signature) {
+    console.error("Missing Paymob signature");
+    return new Response("Missing signature", { status: 403 });
+  }
+
+  const valid = await verifyHmacSha512(body, signature, PAYMOB_SECRET);
+  if (!valid) {
+    console.error("Invalid Paymob signature");
+    return new Response("Invalid signature", { status: 403 });
+  }
+
+  const payload = JSON.parse(body);
 
   const txnId = payload?.obj?.id || "";
   const success = payload?.obj?.success === true;
@@ -254,6 +272,26 @@ function mapLsStatus(lsStatus: string): string {
   return map[lsStatus] || "free";
 }
 
+async function verifyHmacSha512(
+  body: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-512" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const digest = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return timingSafeEqualHex(digest, signature);
+}
+
 async function verifyHmacSha256(
   body: string,
   signature: string,
@@ -271,7 +309,18 @@ async function verifyHmacSha256(
   const digest = Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return digest === signature;
+  return timingSafeEqualHex(digest, signature);
+}
+
+function timingSafeEqualHex(a: string, b: string): boolean {
+  const x = a.trim().toLowerCase();
+  const y = b.trim().toLowerCase();
+  if (x.length !== y.length || x.length === 0) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) {
+    diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 async function logBusinessEvent(event: string, description: string) {
@@ -298,3 +347,5 @@ async function logBusinessEvent(event: string, description: string) {
     console.error("LogSnag error:", e);
   }
 }
+
+

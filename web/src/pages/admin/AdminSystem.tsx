@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import {
   Server, Wifi, Database, AlertTriangle, ExternalLink, RefreshCw, CheckCircle, XCircle,
@@ -137,8 +137,8 @@ export default function AdminSystem() {
         </div>
         <div className="card text-center">
           <Database className="text-purple-400 mx-auto mb-2" size={24} />
-          <p className="text-sm font-medium">Supabase Free</p>
-          <p className="text-xs text-gray-500">500MB / 500MB</p>
+          <p className="text-sm font-medium">Supabase</p>
+          <p className="text-xs text-gray-500">Check Dashboard</p>
         </div>
         <div className="card text-center">
           <AlertTriangle className="text-yellow-400 mx-auto mb-2" size={24} />
@@ -153,7 +153,7 @@ export default function AdminSystem() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { name: 'Supabase Dashboard', url: 'https://supabase.com/dashboard' },
-            { name: 'Cloudflare Pages', url: 'https://dash.cloudflare.com' },
+            { name: 'Vercel', url: 'https://vercel.com/dashboard' },
             { name: 'Sentry', url: 'https://sentry.io' },
             { name: 'UptimeRobot', url: 'https://uptimerobot.com/dashboard' },
             { name: 'Lemon Squeezy', url: 'https://app.lemonsqueezy.com' },
@@ -175,3 +175,4 @@ export default function AdminSystem() {
     </div>
   )
 }
+

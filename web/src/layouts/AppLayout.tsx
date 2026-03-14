@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
@@ -15,6 +16,7 @@ const navItems = [
 
 export default function AppLayout() {
   const { user, profile, isAdmin, signOut } = useAuth()
+  useKeyboardShortcuts()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -26,7 +28,7 @@ export default function AppLayout() {
     navigate('/')
   }
 
-  /* ── Sidebar inner content (plain JSX, NOT a component) ── */
+  /* â”€â”€ Sidebar inner content (plain JSX, NOT a component) â”€â”€ */
   const sidebarInner = (
     <>
       <div className="p-5 border-b border-white/[0.06]">
@@ -48,7 +50,7 @@ export default function AppLayout() {
         <p className="text-xs text-gray-600 mt-2 truncate font-mono">{profile?.email || user?.email}</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5">
+      <nav className="flex-1 p-3 space-y-0.5" aria-label="Main navigation">
         {navItems.map(({ to, icon: Icon, label, end }, i) => (
           <motion.div
             key={to}
@@ -99,8 +101,12 @@ export default function AppLayout() {
 
   return (
     <AgentRelayProvider>
+      {/* Skip to content link for keyboard/screen reader users */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-synapse-600 focus:text-white focus:rounded-lg focus:text-sm">
+        Skip to main content
+      </a>
       <div className="flex h-screen bg-[#09090b]">
-        {/* Desktop Sidebar — always visible at md+ */}
+        {/* Desktop Sidebar â€” always visible at md+ */}
         <motion.aside
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -110,7 +116,7 @@ export default function AppLayout() {
           {sidebarInner}
         </motion.aside>
 
-        {/* Mobile overlay + drawer — keyed motion elements, no Fragment wrapper */}
+        {/* Mobile overlay + drawer â€” keyed motion elements, no Fragment wrapper */}
         <AnimatePresence>
           {sidebarOpen && (
             <motion.div
@@ -166,7 +172,7 @@ export default function AppLayout() {
             transition={{ delay: 0.2 }}
             className="h-full flex-1"
           >
-            <Outlet />
+            <div id="main-content"><Outlet /></div>
           </motion.div>
         </main>
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Local configuration management for the Synapse Agent.
 
 Stores auth tokens, agent ID, and settings in ~/.synapse/config.yaml.
@@ -15,8 +15,10 @@ from typing import Any
 import yaml
 
 
-# ── Synapse cloud config (public, safe to embed) ──────────────
-SYNAPSE_SUPABASE_URL = "https://htigtkfuxyzsnotrjcyz.supabase.co"
+# â”€â”€ Synapse cloud config (public, safe to embed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+# Allow environment variable overrides for Supabase credentials
+SYNAPSE_SUPABASE_URL = os.environ.get("SYNAPSE_SUPABASE_URL", "https://htigtkfuxyzsnotrjcyz.supabase.co")
 SYNAPSE_SUPABASE_ANON_KEY = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
     "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0aWd0a2Z1eHl6c25vdHJqY3l6"
@@ -36,8 +38,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "agent_name": "",
     "work_dir": os.getcwd(),
     "default_tool": "copilot",
-    "default_timeout": 120,
+    "default_timeout": 300,
     "blocked_commands_enabled": True,
+    "shell_enabled": False,
 }
 
 
@@ -107,4 +110,7 @@ def is_authenticated() -> bool:
 
 def get_supabase_config() -> tuple[str, str]:
     """Return (supabase_url, supabase_anon_key)."""
-    return SYNAPSE_SUPABASE_URL, SYNAPSE_SUPABASE_ANON_KEY
+    url = os.environ.get("SYNAPSE_SUPABASE_URL", SYNAPSE_SUPABASE_URL)
+    key = os.environ.get("SYNAPSE_SUPABASE_ANON_KEY", SYNAPSE_SUPABASE_ANON_KEY)
+    return url, key
+

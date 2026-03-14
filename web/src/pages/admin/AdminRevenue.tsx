@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { DollarSign, TrendingDown, CreditCard } from 'lucide-react'
 import {
@@ -9,7 +9,7 @@ import {
 export default function AdminRevenue() {
   const [mrr, setMrr] = useState<{ month: string; mrr: number }[]>([])
   const [churn, setChurn] = useState<{ month: string; churned: number; rate: number }[]>([])
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<{ id: string; provider: string; event_name: string; payload: Record<string, any>; created_at: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function AdminRevenue() {
 
   const currentMrr = mrr.length > 0 ? mrr[mrr.length - 1].mrr : 0
   const prevMrr = mrr.length > 1 ? mrr[mrr.length - 2].mrr : 0
-  const mrrGrowth = prevMrr > 0 ? ((currentMrr - prevMrr) / prevMrr * 100).toFixed(1) : '—'
+  const mrrGrowth = prevMrr > 0 ? ((currentMrr - prevMrr) / prevMrr * 100).toFixed(1) : 'â€”'
 
   return (
     <div className="space-y-8">
@@ -124,11 +124,11 @@ export default function AdminRevenue() {
                   <tr key={ev.id} className="border-b border-gray-800/50">
                     <td className="py-2 capitalize">{ev.provider}</td>
                     <td className="py-2">
-                      <span className="text-xs px-2 py-0.5 rounded bg-gray-800">{ev.event_type}</span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-gray-800">{ev.event_name}</span>
                     </td>
                     <td className="py-2 text-gray-400">
                       {ev.payload?.data?.attributes?.total_formatted ||
-                       ev.payload?.amount_cents ? `${(ev.payload.amount_cents / 100).toFixed(2)} EGP` : '—'}
+                       ev.payload?.amount_cents ? `${(ev.payload.amount_cents / 100).toFixed(2)} EGP` : 'â€”'}
                     </td>
                     <td className="py-2 text-gray-400">{new Date(ev.created_at).toLocaleString()}</td>
                   </tr>
@@ -141,3 +141,4 @@ export default function AdminRevenue() {
     </div>
   )
 }
+
