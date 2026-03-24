@@ -49,6 +49,8 @@ export default function AdminRevenue() {
     if (!confirm('Are you sure you want to reject this payment?')) return;
     await supabase.rpc('admin_reject_payment', { p_payment_id: id });
     loadAll();
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-gray-500">Loading revenue data...</div>
   }

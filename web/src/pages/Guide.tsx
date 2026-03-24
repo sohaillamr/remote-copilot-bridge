@@ -1,5 +1,5 @@
 import { FadeIn } from '../components/Animations'
-import { Check, Terminal, Target, Smartphone, Shield, ArrowRight } from 'lucide-react'
+import { Terminal, Target, Smartphone, Shield, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function Guide() {
