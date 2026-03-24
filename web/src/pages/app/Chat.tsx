@@ -317,6 +317,20 @@ export default function Chat() {
       content: prompt,
       timestamp: new Date(),
     }
+
+    // Embed recent conversation history safely
+    const recentMessages = messages.slice(-6)
+    let contextualPrompt = prompt
+    if (recentMessages.length > 0) {
+      const historyText = recentMessages
+        .map(m => {
+          const text = (m.content || "").length > 2000 ? m.content.slice(0, 2000) + "\n...[truncated]" : m.content;
+          return `${m.role === 'user' ? 'User' : 'Assistant'}:\n${text}`;
+        })
+        .join('\n\n')
+      contextualPrompt = `--- Conversation History ---\n${historyText}\n\n--- Current Request ---\n${prompt}`
+    }
+
     setMessages(prev => [...prev, userMsg])
     setInput('')
 
@@ -346,7 +360,7 @@ export default function Chat() {
     }
 
     // Send prompt (fire-and-forget — don't await so UI stays responsive)
-    sendPrompt(selectedTool, prompt, finalConvId, undefined, selectedModel || undefined)
+    sendPrompt(selectedTool, contextualPrompt, finalConvId, undefined, selectedModel || undefined)
       .finally(() => { isSendingRef.current = false })
 
     // Persist to DB in background
