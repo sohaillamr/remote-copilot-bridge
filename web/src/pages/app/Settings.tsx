@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
+import TeamSettings from './TeamSettings'
 import { supabase } from '../../lib/supabase'
 import { User, Users, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, GraduationCap, Smartphone, Download, Trash2, ShieldAlert } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
@@ -258,6 +259,11 @@ export default function Settings() {
           </div>
         </div>
       </FadeIn>
+        {/* Team Settings (If Team Plan) */}
+        {profile?.plan_tier === "team" && (
+          <TeamSettings />
+        )}
+
 
       {/* Subscription */}
       <FadeIn delay={0.2}>

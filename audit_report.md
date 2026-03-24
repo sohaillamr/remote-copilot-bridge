@@ -1,8 +1,8 @@
 # Synapse Platform - Heavy UX & Functionality Audit
 
 ## 1. Missing Functionalities Required for Platform Maturity
-- **Team Seat & Member Management:** Users can upgrade to the "Team" tier from Pro, but there is no dedicated UI to invite other email addresses, revoke seat access, or monitor team-wide usage in a unified view.
-- **Agent Lifecycle Interactivity:** Agent connectivity status is polled, but real-time updates (Supabase Realtime) on the gents table would prevent connection latency issues when switching tools. 
+- ? **Team Seat & Member Management (Implemented):**  Users can upgrade to the "Team" tier from Pro, but there is no dedicated UI to invite other email addresses, revoke seat access, or monitor team-wide usage in a unified view.
+- ? **Agent Lifecycle Interactivity (Implemented):**  Agent connectivity status is polled, but real-time updates (Supabase Realtime) on the gents table would prevent connection latency issues when switching tools. 
 - **Subscription Portal Actionability:** Users paying for Pro or Team cannot inherently alter payment methods, check receipts, or explicitly "Cancel". Integration with the Stripe Customer Portal (ctive / past_due status syncing) needs building on the backend.
 - **Granular Git Versioning Details:** The current /git tool in Chat executes basic commits. Advanced states (branching, stash, conflict states) are hidden unless output by the CLI terminal.
 
