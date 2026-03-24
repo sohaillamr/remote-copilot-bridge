@@ -318,23 +318,32 @@ export default function Settings() {
                 {profile?.subscription_status || 'inactive'}
               </span>
             </div>
+            
+            {/* Always show tier and price if active */}
+            {profile?.subscription_status === 'active' && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500 text-sm">Current Plan</span>
+                <span className="text-sm font-medium text-white">
+                  {profile?.plan_tier === 'team' ? 'Team ($12/seat/mo)' : 'Pro ($12.00/mo)'}
+                </span>
+              </div>
+            )}
+            
             {profile?.subscription_status === 'trial' && profile.trial_ends_at && (
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 text-sm">Trial Ends</span>
                 <span className="text-sm font-mono text-gray-400">{new Date(profile.trial_ends_at).toLocaleDateString()}</span>
               </div>
             )}
-            {profile?.subscription_status === 'active' && profile.subscription_ends_at && (
+            {profile?.subscription_status === 'active' && (
               <>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-sm">Subscribed On</span>
+                  <span className="text-gray-500 text-sm">Estimated Renewal</span>
                   <span className="text-sm font-mono text-gray-400">
-                    {new Date(new Date(profile.subscription_ends_at).getTime() - 30*24*60*60*1000).toLocaleDateString()}
+                    {profile.subscription_ends_at 
+                      ? new Date(profile.subscription_ends_at).toLocaleDateString() 
+                      : new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString()}
                   </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-sm">Valid Until</span>
-                  <span className="text-sm font-mono text-gray-400">{new Date(profile.subscription_ends_at).toLocaleDateString()}</span>
                 </div>
               </>
             )}
