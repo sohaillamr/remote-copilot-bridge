@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { AgentRelayProvider } from '../contexts/AgentRelayContext'
 import ToastContainer from '../components/ToastContainer'
-import { MessageSquare, FolderOpen, Settings, LayoutDashboard, LogOut, Shield, Zap, Menu, X } from 'lucide-react'
+import { MessageSquare, FolderOpen, Settings, LayoutDashboard, LogOut, Shield, Zap, Menu, X, Users } from 'lucide-react'
 
 const navItems = [
   { to: '/app', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -51,7 +51,12 @@ export default function AppLayout() {
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5" aria-label="Main navigation">
-        {navItems.map(({ to, icon: Icon, label, end }, i) => (
+        {(() => {
+          const items = profile?.plan_tier === 'team' 
+            ? [...navItems.slice(0, 3), { to: '/app/team', icon: Users, label: 'Team', end: false }, navItems[3]] 
+            : navItems;
+          return items.map(({ to, icon: Icon, label, end }, i) => (
+
           <motion.div
             key={to}
             initial={{ x: -10, opacity: 0 }}
@@ -74,7 +79,7 @@ export default function AppLayout() {
               {label}
             </NavLink>
           </motion.div>
-        ))}
+        ))})()}
       </nav>
 
       <div className="p-3 border-t border-white/[0.06] space-y-0.5">

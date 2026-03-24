@@ -16,6 +16,7 @@ const Dashboard = lazy(() => import('./pages/app/Dashboard'))
 const Chat = lazy(() => import('./pages/app/Chat'))
 const FileBrowser = lazy(() => import('./pages/app/FileBrowser'))
 const Settings = lazy(() => import('./pages/app/Settings'))
+const TeamDashboard = lazy(() => import('./pages/app/TeamDashboard'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'))
@@ -102,6 +103,7 @@ function AnimatedRoutes() {
               <Route path="chat/:id" element={<Chat />} />
               <Route path="files" element={<FileBrowser />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="team" element={<TeamDashboard />} />
             </Route>
 
             {/* Admin */}
