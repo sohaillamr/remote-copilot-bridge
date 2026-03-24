@@ -208,12 +208,26 @@ export default function Dashboard() {
         <div>
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Your Agents</h2>
           {loading ? (
-            <div className="glass-card rounded-xl text-center py-10 space-y-3">
-              <div className="flex justify-center">
-                <div className="w-6 h-6 border-2 border-synapse-500/30 border-t-synapse-400 rounded-full animate-spin" />
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+                {[1, 2].map(i => (
+                  <div key={i} className="glass-card p-4 sm:p-5 rounded-xl border border-white/[0.04]">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white/[0.04] animate-pulse" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-24 bg-white/[0.04] rounded animate-pulse" />
+                          <div className="h-3 w-16 bg-white/[0.04] rounded animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="w-16 h-6 rounded-full bg-white/[0.04] animate-pulse" />
+                    </div>
+                    <div className="pt-3 flex gap-2">
+                      <div className="w-full h-8 rounded bg-white/[0.04] animate-pulse" />
+                      <div className="w-full h-8 rounded bg-white/[0.04] animate-pulse" />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-gray-600 text-sm">Loading agents...</p>
-            </div>
           ) : agents.length === 0 ? (
             <div className="glass-card rounded-xl text-center py-10 sm:py-12">
               <Terminal className="text-gray-700 mx-auto mb-4" size={28} />
