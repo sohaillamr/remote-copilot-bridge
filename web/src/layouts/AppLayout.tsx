@@ -126,7 +126,7 @@ export default function AppLayout() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={closeSidebar}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[105] md:hidden"
               style={{ touchAction: 'none' }}
             />
           )}
@@ -138,8 +138,8 @@ export default function AppLayout() {
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 bottom-0 w-[280px] max-w-[85vw] border-r border-white/[0.06] flex flex-col bg-[#0c0c0f]/95 backdrop-blur-xl z-50 md:hidden"
+              transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
+              className="fixed top-0 left-0 bottom-0 w-[280px] max-w-[85vw] border-r border-white/[0.06] flex flex-col bg-[#0c0c0f] z-[110] md:hidden shadow-2xl"
               style={{ paddingTop: 'env(safe-area-inset-top)' }}
             >
               {sidebarInner}
