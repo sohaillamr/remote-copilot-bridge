@@ -166,7 +166,7 @@ export default memo(function MarkdownMessage({ content, className = '' }: Props)
   const processed = useMemo(() => preprocessContent(content), [content])
 
   /* Markdown content — render with ReactMarkdown */
-  if (looksLikeMarkdown(processed)) {
+  if (true) {
     return (
       <div className={`markdown-body text-xs sm:text-sm text-gray-300 leading-relaxed space-y-1 ${className}`}>
         <ReactMarkdown

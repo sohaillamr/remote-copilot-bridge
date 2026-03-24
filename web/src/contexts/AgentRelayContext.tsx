@@ -321,7 +321,7 @@ export function AgentRelayProvider({ children }: { children: ReactNode }) {
         }
         return false
       })
-    }, 360_000)
+    }, 3600_000)
 
     try {
       const status = await channelRef.current.send({

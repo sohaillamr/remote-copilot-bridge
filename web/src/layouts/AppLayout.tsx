@@ -30,7 +30,7 @@ export default function AppLayout() {
   }
 
   /* â”€â”€ Sidebar inner content (plain JSX, NOT a component) â”€â”€ */
-  const sidebarInner = (
+  const SidebarInner = () => (
     <>
       <div className="p-5 border-b border-white/[0.06]">
         <div className="flex items-center justify-between">
@@ -119,7 +119,7 @@ export default function AppLayout() {
           transition={{ duration: 0.35 }}
           className="hidden md:flex w-64 border-r border-white/[0.06] flex-col bg-[#0c0c0f]/80 backdrop-blur-xl"
         >
-          {sidebarInner}
+          <SidebarInner />
         </motion.aside>
 
         {/* Mobile overlay + drawer — keyed motion elements, no Fragment wrapper */}
@@ -148,7 +148,7 @@ export default function AppLayout() {
               className="fixed top-0 left-0 bottom-0 w-[280px] max-w-[85vw] border-r border-white/[0.06] flex flex-col bg-[#0c0c0f] z-[110] md:hidden shadow-2xl"
               style={{ paddingTop: 'env(safe-area-inset-top)' }}
             >
-              {sidebarInner}
+              <SidebarInner />
             </motion.aside>
           )}
         </AnimatePresence>
