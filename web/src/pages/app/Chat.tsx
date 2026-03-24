@@ -838,6 +838,12 @@ export default function Chat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value.slice(0, MAX_PROMPT_LENGTH))}
                 onKeyDown={handleKeyDown}
+                  style={{ minHeight: "44px", maxHeight: "200px" }}
+                  onInput={(e) => {
+                    const t = e.target as HTMLTextAreaElement;
+                    t.style.height = "auto";
+                    t.style.height = t.scrollHeight + "px";
+                  }}
                 placeholder={
                   isListening
                     ? 'Listening\u2026 speak now'

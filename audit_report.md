@@ -1,34 +1,16 @@
-# Synapse Production Readiness Audit Report
+# Synapse Platform - Heavy UX & Functionality Audit
 
-## 1. Application Security & Authentication
-- **Supabase RLS Policies**: The project implements strict Row Level Security rules, ensuring `public.manual_payments`, `profiles`, and `payment_events` are sufficiently isolated per-user, mitigating cross-tenant vulnerabilities. 
-- **Admin Endpoints**: Secure Postgres Functions (like `admin_approve_payment`) correctly assert `public.is_admin()` before allowing data mutation.
-- **Frontend State**: Routes correctly redirect `ProtectedRoute` wrappers without flickering, with an extra `banned_at` constraint block for suspended accounts.
+## 1. Missing Functionalities Required for Platform Maturity
+- **Team Seat & Member Management:** Users can upgrade to the "Team" tier from Pro, but there is no dedicated UI to invite other email addresses, revoke seat access, or monitor team-wide usage in a unified view.
+- **Agent Lifecycle Interactivity:** Agent connectivity status is polled, but real-time updates (Supabase Realtime) on the gents table would prevent connection latency issues when switching tools. 
+- **Subscription Portal Actionability:** Users paying for Pro or Team cannot inherently alter payment methods, check receipts, or explicitly "Cancel". Integration with the Stripe Customer Portal (ctive / past_due status syncing) needs building on the backend.
+- **Granular Git Versioning Details:** The current /git tool in Chat executes basic commits. Advanced states (branching, stash, conflict states) are hidden unless output by the CLI terminal.
 
-## 2. Environment Configurations
-- Top-level directories properly handle environments via vite environments (`import.meta.env`).
-- Environment templates (`.env.example`) safely exclude critical production secrets, including Supabase Project URLs.
+## 2. Recommended UX Enhancements
+- ? **Implemented:** Textarea Auto-Resize in Chat. Previously the textarea wouldn't expand when writing multi-line complex Prompts (like providing a whole block of code). 
+- **Global Loading States:** Better skeleton models to prevent UI pop-in when Supabase queries resolve in FileBrowser.tsx and Dashboard.tsx.
+- **Keyboard Shortcuts:** A lack of robust shortcuts inside the App. Features like Cmd+K for searching past chats, Esc to unfocus input.
+- **Visual Feedback on Background Processing:** While LLM tools are streaming responses, a smoother streaming animation or clearer "Thought" blocks (similar to o1-preview) would clarify the Agent Relay's actions.
 
-## 3. Database Integrity & Storage
-- Custom enum `subscription_status` handles varied user payment journeys out-of-the-box (`free`, `trial`, `active`, `past_due`, `cancelled`).
-- **Instapay Updates Added**: Migration `007_instapay_manual.sql` introduces an explicit tracking table `manual_payments` allowing user receipts handling efficiently, connected via foreign key references cascading correctly from `auth.users`.
-- Scalable bucket initialization. Note: The `receipts` bucket is public for ease of read via front-end admin dashboard without signed URLs bottleneck for manual processing.
-
-## 4. Frontend Resilience
-- **Error Boundaries**: Implemented top-level `ErrorBoundary` wrapping `AnimatedRoutes` ensuring the React tree never completely hard-crashes.
-- **Splitting and Optimization**: Core pages (`Dashboard.tsx`, `Chat.tsx`, `Settings.tsx`, etc) correctly use `React.lazy` deferring bundle burdens upfront. 
-- **Loading UI**: Suspense integrations efficiently wrap lazy-modules with native spinners.
-
-## 5. Webhook Stability vs. Manual Processes
-- Previously, automated callbacks (`paymob/stripe`) caused potential inconsistencies due to integration delays. 
-- **Recommendation Added**: Replaced with `Instapay` mechanism via Manual payments, removing async webhook dependency for now, significantly boosting success rate given targeted Egyptian demographic constraints on global payment processing methods.
-
-## 6. Development Operations & Code Quality
-- Top-level dependencies (`vite`, `framer-motion`, `lucide-react`) are stable and updated. 
-- Python package `synapse-agent` specifies concise requirements.
-
-### Final Checklist Status: Ready for Production
-- [x] Subscription workflows verified 
-- [x] Manual Receipts Storage working
-- [x] Admin Dashboard capabilities confirmed
-- [x] UX Guide / Installation Guide updated for straightforward un-blocking.
+## 3. General Architecture Observations
+- Relaying system over WebSockets via Supabase DB states is highly reliable but susceptible to DB bottleneck when user count scales. A dedicated direct websocket connection server outside the database edge might be needed later.
