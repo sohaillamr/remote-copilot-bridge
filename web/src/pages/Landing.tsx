@@ -340,12 +340,12 @@ function PricingSection() {
                   >
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-4xl sm:text-5xl font-extrabold">
-                        {yearly ? '$19' : '$24'}
+                        {yearly ? '$10' : '$12'}
                       </span>
                       <span className="text-gray-500">/{yearly ? 'seat/month' : 'seat/month'}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {yearly ? 'Billed annually ($228/seat) • save $60' : 'Cancel anytime'}
+                      {yearly ? 'Billed annually ($120/seat) • save $24' : 'Cancel anytime'}
                     </p>
                   </motion.div>
                 </AnimatePresence>
@@ -442,7 +442,7 @@ export default function LandingPage() {
 
         <FadeIn delay={0.35}>
           <p className="text-sm sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed text-balance px-2">
-            Ship faster at your desk, and triage critical production issues from your phone—even during dinner. Connect securely to your local VS Code environment, run CLI commands, and chat with your codebase. The dream tool for elite developers and agile teams.
+            Full-fidelity remote development environments streamed directly to your pocket. Zero latency, total access.
           </p>
         </FadeIn>
 
