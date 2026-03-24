@@ -574,6 +574,7 @@ class SynapseRelay:
     async def _heartbeat_loop(self, interval: int = 30) -> None:
         """Send periodic heartbeat to keep agent status fresh."""
         refresh_counter = 0
+        error_count = 0
         while self._running:
             try:
                 if self._supabase and self._agent_id:
@@ -582,18 +583,36 @@ class SynapseRelay:
                         "last_seen_at": "now()",
                     }).eq("id", self._agent_id).execute()
 
-                # Proactively refresh auth tokens every ~50 minutes
-                # (Supabase tokens expire after 60 min)
+                if self._channel:
+                    # Send a health check broadcast to ensure the socket is actually writable
+                    # If the socket is dead, this usually drops an exception
+                    await self._channel.send_broadcast("health", {"status": "ok"})
+
+                # Success, reset consecutive errors
+                error_count = 0
+
+                # Proactively refresh auth tokens every ~45 minutes
                 refresh_counter += 1
-                if refresh_counter >= (50 * 60 // interval):
+                if refresh_counter >= (45 * 60 // interval):
                     refresh_counter = 0
                     if self._supabase:
                         try:
-                            await self._supabase.auth.refresh_session()
-                        except Exception:
-                            pass  # Token listener will persist on success
-            except Exception:
-                pass  # Silently retry on next heartbeat
+                            res = await self._supabase.auth.refresh_session()
+                            session = getattr(res, "session", None) if res else None
+                            # Update realtime auth if possible
+                            if session and getattr(session, "access_token", None):
+                                if hasattr(self._supabase, "realtime") and hasattr(self._supabase.realtime, "set_auth"):
+                                    self._supabase.realtime.set_auth(session.access_token)
+                        except Exception as e:
+                            console.print(f"[dim]Token refresh info: {e}[/dim]")
+            except Exception as e:
+                error_count += 1
+                console.print(f"[yellow]Heartbeat error ({error_count}): {e}[/yellow]")
+                if error_count >= 3:
+                    console.print("[red]Connection seems dead after continuous failures. Engaging reconnect...[/red]")
+                    self._should_reconnect = True
+                    return  # Break heartbeat
+                    
             await asyncio.sleep(interval)
 
     # ---- Main run loop ----
@@ -602,42 +621,57 @@ class SynapseRelay:
         """Connect and listen forever. Main entry point for `synapse start`."""
         self._running = True
 
-        await self.connect()
-
-        console.print("\n[bold green]Synapse Agent is running[/bold green]")
-        console.print("[dim]Press Ctrl+C to stop[/dim]\n")
-
-        heartbeat = asyncio.create_task(self._heartbeat_loop())
-
-        # Register OS-level signal handlers for graceful shutdown
         loop = asyncio.get_running_loop()
+        self._heartbeat_task = None
+
+        def _handle_sig():
+            asyncio.create_task(self._graceful_shutdown())
+
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
-                loop.add_signal_handler(sig, lambda: asyncio.create_task(self._graceful_shutdown(heartbeat)))
+                loop.add_signal_handler(sig, _handle_sig)
             except NotImplementedError:
-                # Windows doesn't support add_signal_handler for all signals
                 pass
 
-        try:
-            # Keep running until interrupted
-            while self._running:
-                await asyncio.sleep(1)
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            pass
-        finally:
-            self._running = False
-            heartbeat.cancel()
-            await self._disconnect()
+        while self._running:
+            self._should_reconnect = False
+            
+            try:
+                await self.connect()
+                console.print("
+[bold green]Synapse Agent is connected and listening[/bold green]")
+                console.print("[dim]Press Ctrl+C to stop[/dim]
+")
 
-    async def _graceful_shutdown(self, heartbeat: asyncio.Task) -> None:
+                self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+
+                # Keep running until interrupted or reconnect requested
+                while self._running and getattr(self, '_should_reconnect', False) is False:
+                    await asyncio.sleep(1)
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                self._running = False
+            except Exception as e:
+                console.print(f"[red]Exception in main run loop: {e}[/red]")
+            finally:
+                if self._heartbeat_task:
+                    self._heartbeat_task.cancel()
+                    self._heartbeat_task = None
+                await self._disconnect()
+
+            if self._running:
+                console.print("[yellow]Reconnecting in 5 seconds...[/yellow]")
+                await asyncio.sleep(5)
+
+    async def _graceful_shutdown(self) -> None:
         """Handle OS signals for graceful shutdown."""
-        console.print("\n[yellow]Received shutdown signal...[/yellow]")
+        console.print("
+[yellow]Received shutdown signal...[/yellow]")
         self._running = False
-        heartbeat.cancel()
+        if getattr(self, '_heartbeat_task', None):
+            self._heartbeat_task.cancel()
         # Cancel any running subprocess
         await self.bridge.cancel()
         await self._disconnect()
-
     async def _disconnect(self) -> None:
         """Clean shutdown -- mark agent offline, unsubscribe."""
         console.print("\n[yellow]Shutting down...[/yellow]")
