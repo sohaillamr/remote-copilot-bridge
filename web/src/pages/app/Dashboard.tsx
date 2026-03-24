@@ -87,7 +87,7 @@ export default function Dashboard() {
       <FadeIn>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Command Center</h1>
             <p className="text-gray-500 mt-1 text-sm">
               {greeting}{profile?.display_name ? `, ${profile.display_name}` : ''}.
             </p>
@@ -150,9 +150,9 @@ export default function Dashboard() {
       </FadeIn>
       <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         {[
-          { to: '/app/chat', icon: MessageSquare, label: 'New Chat', desc: 'Start a prompt session', iconBg: 'bg-synapse-600/10', iconColor: 'text-synapse-400', shortcut: 'Ctrl+2' },
-          { to: '/app/files', icon: Terminal, label: 'File Browser', desc: 'Browse remote files', iconBg: 'bg-blue-600/10', iconColor: 'text-blue-400', shortcut: 'Ctrl+3' },
-          { to: '/app/settings', icon: Clock, label: 'Settings', desc: 'Manage account', iconBg: 'bg-purple-600/10', iconColor: 'text-purple-400', shortcut: 'Ctrl+4' },
+            { to: '/app/chat', icon: MessageSquare, label: 'Start a Prompt', desc: 'Jump into a new session', iconBg: 'bg-synapse-600/10', iconColor: 'text-synapse-400', shortcut: 'Ctrl+2' },
+            { to: '/app/files', icon: Terminal, label: 'Browse Machine Files', desc: 'Explore and run code', iconBg: 'bg-blue-600/10', iconColor: 'text-blue-400', shortcut: 'Ctrl+3' },
+            { to: '/app/settings', icon: Clock, label: 'Configure Setup', desc: 'Permissions and account', iconBg: 'bg-purple-600/10', iconColor: 'text-purple-400', shortcut: 'Ctrl+4' },
         ].map(({ to, icon: Icon, label, desc, iconBg, iconColor, shortcut }) => (
           <StaggerItem key={to}>
             <Link to={to}>
@@ -217,8 +217,8 @@ export default function Dashboard() {
           ) : agents.length === 0 ? (
             <div className="glass-card rounded-xl text-center py-10 sm:py-12">
               <Terminal className="text-gray-700 mx-auto mb-4" size={28} />
-              <p className="text-gray-400 text-sm font-medium mb-1">No agents connected yet</p>
-              <p className="text-gray-600 text-xs mb-5">Set up your first agent in 3 commands</p>
+              <p className="text-gray-400 text-sm font-medium mb-1">Your workspace is waiting. Let's wake up your first agent.</p>
+              <p className="text-gray-600 text-xs mb-5">Follow these 3 commands to get up and running instantly</p>
               <div className="terminal max-w-xs mx-auto shadow-glow">
                 <div className="terminal-header">
                   <div className="terminal-dot bg-red-500/80" />

@@ -163,8 +163,8 @@ export default function LoginPage() {
             ) : (
               <>
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold mb-2">Welcome back</h2>
-                  <p className="text-sm text-gray-500">Sign in to access your AI tools remotely</p>
+                  <h2 className="text-2xl font-bold mb-2">Resume your session</h2>
+                  <p className="text-sm text-gray-500">Reconnect to your AI agents and pick up where you left off</p>
                 </div>
 
                 {/* OAuth buttons */}
@@ -258,7 +258,7 @@ export default function LoginPage() {
                   aria-controls="pair-code-form"
                 >
                   <Smartphone size={15} />
-                  Have a pairing code?
+                  Instant Mobile Login
                 </button>
 
                 {showPairCode && (
@@ -271,7 +271,7 @@ export default function LoginPage() {
                     aria-label="Device pairing"
                   >
                     <p className="text-xs text-gray-500 text-center">
-                      Enter the code shown on your desktop's Settings page
+                      Scan the QR code or type the 12-digit PIN from your desktop to instantly sync your session
                     </p>
                     <label htmlFor="pair-code-input" className="sr-only">Pairing code</label>
                     <input

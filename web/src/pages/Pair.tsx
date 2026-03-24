@@ -79,9 +79,8 @@ export default function PairPage() {
         }
 
         setStatus('success')
-        // Don't auto-redirect immediately - show the pairing code & instructions
-        // so user can re-pair in regular Safari if this is an isolated browser.
-        setTimeout(() => navigate('/app'), 8000)
+        // Don't auto-redirect. Users in ephemeral scanners might lose their login.
+        // Let them tap the button manually or copy the link to Safari.
       } else {
         setStatus('error')
         setErrorMsg('Invalid token response.')
@@ -136,57 +135,50 @@ export default function PairPage() {
           )}
           {status === 'success' && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto">
-                <CheckCircle className="text-emerald-400" size={32} />
-              </div>
-              <h2 className="text-lg font-bold text-emerald-400">Paired Successfully!</h2>
+  <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto">
+    <CheckCircle className="text-emerald-400" size={32} />
+  </div>
+  <h2 className="text-lg font-bold text-emerald-400">Paired Successfully!</h2>
 
-              {/* Show pairing code for re-use in regular Safari */}
-              {pairToken && (
-                <div className="mt-4 space-y-3">
-                  <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-4">
-                    <p className="text-xs text-gray-500 mb-2">
-                      If this opened in the wrong browser, open Safari and go to:
-                    </p>
-                    <p className="text-xs text-synapse-400 font-medium break-all mb-3">
-                      {window.location.origin}/login
-                    </p>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Then tap <span className="text-gray-300">"Have a pairing code?"</span> and enter:
-                    </p>
-                    <div
-                      className="bg-white/[0.04] border border-white/10 rounded-lg px-4 py-3 cursor-pointer hover:bg-white/[0.06] transition-colors"
-                      onClick={() => handleCopy(pairToken)}
-                    >
-                      <span className="text-xl font-mono font-bold tracking-[0.3em] text-synapse-400">
-                        {displayCode}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-600 mt-2">
-                      {copied ? '✓ Copied!' : 'Tap code to copy'}
-                    </p>
-                  </div>
+  {/* Safari Warning */}
+  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-left">
+    <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-1">
+      ?? Essential: Keep your login
+    </h3>
+    <p className="text-[13px] text-amber-200/80 mb-3 leading-relaxed">
+      Scanning a QR code often opens a temporary viewer. To stay permanently logged in, you must continue in Safari.
+    </p>
+    <p className="text-[13px] text-amber-200/80 mb-3 leading-relaxed">
+      Tap the ?? <strong>compass icon</strong> (bottom right) to open Safari, or copy the link below:
+    </p>
+    <div className="flex gap-2">
+      <button
+        onClick={() => handleCopy(pairUrl)}
+        className="flex-1 bg-black/20 hover:bg-black/40 text-amber-400 border border-amber-500/20 rounded-lg py-2 text-xs font-medium transition-colors flex items-center justify-center gap-2"
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+        {copied ? 'Copied' : 'Copy Link'}
+      </button>
+      <a
+        href={pairUrl.replace('https://', 'x-safari-https://').replace('http://', 'x-safari-http://')}
+        className="flex-1 bg-amber-500 hover:bg-amber-400 text-black rounded-lg py-2 text-xs font-medium transition-colors flex items-center justify-center gap-2"
+      >
+        <ExternalLink size={14} />
+        Force Safari
+      </a>
+    </div>
+  </div>
 
-                  {/* Copy URL button */}
-                  <button
-                    onClick={() => handleCopy(pairUrl)}
-                    className="w-full flex items-center justify-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors py-2"
-                  >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                    Copy pair link
-                  </button>
-                </div>
-              )}
-
-              <button
-                onClick={() => navigate('/app')}
-                className="btn-primary text-sm px-6 py-2.5 mt-2 inline-flex items-center gap-2"
-              >
-                <ExternalLink size={14} />
-                Go to Dashboard
-              </button>
-              <p className="text-xs text-gray-600">Auto-redirecting in a few seconds…</p>
-            </motion.div>
+  <div className="mt-6 pt-4 border-t border-white/[0.06]">
+    <p className="text-xs text-gray-500 mb-3">If you are already in Safari or Chrome:</p>
+    <button
+      onClick={() => navigate('/app')}
+      className="btn-primary w-full text-sm px-6 py-3 flex justify-center items-center gap-2"
+    >
+      Go to Command Center <ExternalLink size={14} />
+    </button>
+  </div>
+</motion.div>
           )}
           {status === 'error' && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">

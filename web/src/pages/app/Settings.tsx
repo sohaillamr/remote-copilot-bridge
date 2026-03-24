@@ -25,13 +25,7 @@ export default function Settings() {
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState('')
-  const [showStudentModal, setShowStudentModal] = useState(false)
-  const [eduEmail, setEduEmail] = useState('')
-  const [eduOtp, setEduOtp] = useState('')
-  const [eduStep, setEduStep] = useState<'email' | 'otp'>('email')
-  const [eduSaving, setEduSaving] = useState(false)
-  const [eduError, setEduError] = useState('')
-  const [exporting, setExporting] = useState(false)
+              const [exporting, setExporting] = useState(false)
 
   // Instapay state
   const [instapayReceipt, setInstapayReceipt] = useState<File | null>(null)
@@ -40,8 +34,7 @@ export default function Settings() {
   const [instapaySuccess, setInstapaySuccess] = useState(false)
   const [instapayError, setInstapayError] = useState('')
 
-  const isStudent = profile?.plan_tier === 'student'
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   const pairUrl = qrToken ? `${window.location.origin}/pair?token=${qrToken}` : ''
   // Format code for display: XXXX-XXXX-XXXX
   const displayCode = qrToken
@@ -78,74 +71,7 @@ export default function Settings() {
     }
   }
 
-  function isEduEmailAddr(email: string): boolean {
-    const lower = email.toLowerCase().trim()
-    return lower.endsWith('.edu') ||
-           /\.edu\.[a-z]{2,}$/.test(lower) ||
-           /\.ac\.[a-z]{2,}$/.test(lower)
-  }
-
-  async function sendStudentOtp() {
-    if (!user || !eduEmail.trim()) return
-    if (!isEduEmailAddr(eduEmail)) {
-      setEduError('Please enter a valid academic email (.edu, .ac.uk, etc.)')
-      return
-    }
-    setEduSaving(true)
-    setEduError('')
-    try {
-      // Send a magic link OTP to the .edu email to prove ownership
-      const { error } = await supabase.auth.signInWithOtp({
-        email: eduEmail.trim().toLowerCase(),
-        options: {
-          shouldCreateUser: false,
-          data: { edu_verification: true },
-        },
-      })
-      if (error) throw error
-      setEduStep('otp')
-    } catch (err: any) {
-      // If signInWithOtp fails because the email doesn't match the user,
-      // fall back to a simpler verification with a confirmation step
-      setEduError('We sent a verification email. Check your academic inbox.')
-      // Store the pending edu email — verified on next login from that email
-      await supabase.from('profiles').update({
-        edu_email: eduEmail.trim().toLowerCase(),
-      }).eq('id', user.id)
-      setEduStep('otp')
-    } finally {
-      setEduSaving(false)
-    }
-  }
-
-  async function confirmStudentOtp() {
-    if (!user || !eduOtp.trim()) return
-    setEduSaving(true)
-    setEduError('')
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: eduEmail.trim().toLowerCase(),
-        token: eduOtp.trim(),
-        type: 'email',
-      })
-      if (error) throw error
-      // OTP verified — apply student discount
-      await supabase.from('profiles').update({
-        edu_email: eduEmail.trim().toLowerCase(),
-        edu_verified_at: new Date().toISOString(),
-        plan_tier: 'student',
-      }).eq('id', user.id)
-      setShowStudentModal(false)
-      setEduEmail('')
-      setEduOtp('')
-      setEduStep('email')
-      if (user) refreshProfile(user.id)
-    } catch (err: any) {
-      setEduError('Invalid or expired code. Please try again.')
-    } finally {
-      setEduSaving(false)
-    }
-  }
+  
 
   async function exportMyData() {
     if (!user) return
@@ -349,12 +275,7 @@ export default function Settings() {
               </div>
             )}
             <div className="pt-4 border-t border-white/[0.06] space-y-2">
-              {isStudent && (
-                <div className="flex items-center gap-2 text-emerald-400 text-xs mb-2 px-1">
-                  <GraduationCap size={12} />
-                  <span>Student discount active</span>
-                </div>
-              )}
+              
               {profile?.subscription_status === 'active' ? (
                 <button disabled className="btn-secondary w-full text-center block text-sm py-2.5 opacity-50 cursor-not-allowed">
                   Subscription Active
@@ -365,17 +286,9 @@ export default function Settings() {
                     onClick={() => { setPaymentPlan('egp'); setShowPaymentModal(true) }}
                     className="btn-primary w-full text-center block text-sm py-2.5"
                   >
-                    Subscribe with Instapay &mdash; {isStudent ? '200' : '250'} EGP
+                    Subscribe with Instapay &mdash; 250 EGP
                   </button>
-                  {!isStudent && (
-                    <button
-                      onClick={() => setShowStudentModal(true)}
-                      className="w-full text-center text-[11px] text-gray-600 hover:text-synapse-400 transition-colors py-1 flex items-center justify-center gap-1"
-                    >
-                      <GraduationCap size={11} />
-                      Student? Get it for 200 EGP / month
-                    </button>
-                  )}
+                  
                 </div>
               )}
             </div>
@@ -582,7 +495,7 @@ export default function Settings() {
                   </h3>
                   <p className="text-xs text-gray-500">
                     Unlimited prompts, all AI tools, priority support
-                    {isStudent && ' • Student discount applied'}
+                    
                   </p>
                 </div>
                 <div className="space-y-4 mb-6 text-sm text-gray-400">
@@ -603,7 +516,7 @@ export default function Settings() {
                         <input 
                           type="number" 
                           className="input w-full" 
-                          placeholder={isStudent ? (paymentPlan === 'usd' ? '4' : '200') : (paymentPlan === 'usd' ? '5' : '250')} 
+                          placeholder={paymentPlan === 'usd' ? '5' : '250'} 
                           value={instapayAmount}
                           onChange={(e) => setInstapayAmount(e.target.value)}
                         />
@@ -638,74 +551,7 @@ export default function Settings() {
         )}
       </AnimatePresence>
 
-      {/* Student Verification Modal */}
-      <AnimatePresence>
-        {showStudentModal && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowStudentModal(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="fixed inset-0 flex items-center justify-center z-50 p-4">
-              <div className="glass-card rounded-2xl p-6 sm:p-8 max-w-sm w-full relative border border-white/[0.08]">
-                <button onClick={() => setShowStudentModal(false)} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors">
-                  <X size={16} />
-                </button>
-                <div className="text-center mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto mb-4">
-                    <GraduationCap className="text-synapse-400" size={22} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-1">Student Discount</h3>
-                  <p className="text-xs text-gray-500">Verify your academic email to get Synapse for $4/month</p>
-                </div>
-                <div className="space-y-4">
-                  {eduStep === 'email' ? (
-                    <>
-                      <div>
-                        <label className="text-xs text-gray-600 block mb-1.5">Academic Email</label>
-                        <input type="email" value={eduEmail} onChange={e => setEduEmail(e.target.value)} placeholder="you@university.edu" className="input w-full" />
-                        <p className="text-[10px] text-gray-600 mt-1">We'll send a verification code to confirm ownership</p>
-                      </div>
-                      {eduError && (
-                        <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-400">{eduError}</motion.p>
-                      )}
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        onClick={sendStudentOtp}
-                        disabled={eduSaving || !eduEmail.trim()}
-                        className="btn-primary w-full text-sm py-2.5 flex items-center justify-center gap-2"
-                      >
-                        {eduSaving ? <Loader2 className="animate-spin" size={14} /> : null}
-                        Send Verification Code
-                      </motion.button>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <p className="text-xs text-gray-400 mb-3">We sent a 6-digit code to <span className="text-white font-medium">{eduEmail}</span></p>
-                        <label className="text-xs text-gray-600 block mb-1.5">Verification Code</label>
-                        <input type="text" value={eduOtp} onChange={e => setEduOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="input w-full text-center tracking-[0.3em] font-mono text-lg" maxLength={6} autoFocus />
-                      </div>
-                      {eduError && (
-                        <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-red-400">{eduError}</motion.p>
-                      )}
-                      <motion.button
-                        whileTap={{ scale: 0.97 }}
-                        onClick={confirmStudentOtp}
-                        disabled={eduSaving || eduOtp.length < 6}
-                        className="btn-primary w-full text-sm py-2.5 flex items-center justify-center gap-2"
-                      >
-                        {eduSaving ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
-                        Verify & Apply Discount
-                      </motion.button>
-                      <button onClick={() => { setEduStep('email'); setEduError(''); setEduOtp('') }} className="w-full text-center text-xs text-gray-600 hover:text-gray-400 transition-colors">
-                        Use a different email
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      
     </div>
   )
 }

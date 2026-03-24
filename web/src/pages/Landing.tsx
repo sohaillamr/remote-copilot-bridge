@@ -23,7 +23,7 @@ const tools = [
 const capabilities = [
   {
     icon: Cpu,
-    title: 'Multi-Model Support',
+    title: 'Switch Models on the Fly',
     desc: 'Run Copilot, Claude, Gemini, Codex, or Aider — all from one interface. Switch models per prompt.',
   },
   {
@@ -43,7 +43,7 @@ const capabilities = [
   },
   {
     icon: MonitorSmartphone,
-    title: 'File Browser & Shell',
+    title: 'Command Your Machine Remotely',
     desc: 'Browse your project files, read code, and run shell commands — all from your phone.',
   },
   {
@@ -79,16 +79,16 @@ const steps = [
 
 const useCases = [
   {
-    title: 'Code from the Commute',
-    desc: 'Debug your project from the metro. Open Synapse on your phone, ask Copilot to fix the bug, done before you reach campus.',
+    title: 'Zero Downtime Dinners',
+    desc: 'Server goes down during dinner? Pull out your phone, access your secure workspace, and ask your AI agent to debug the logs. Resolve critical issues without a laptop.',
   },
   {
-    title: 'Voice-First Workflow',
-    desc: 'Speak your prompt while cooking — your laptop executes the code. No keyboard needed, just your voice and your AI tools.',
+    title: 'Reduce MTTR for Agencies',
+    desc: 'Empower your software house to deliver insanely fast support and scale revenue. Equip your on-call team with remote shell execution and full repo context from anywhere.',
   },
   {
     title: 'Zero Trust Security',
-    desc: 'Your agent runs locally and nothing leaves your machine. Fully encrypted relay — we never see your code.',
+    desc: 'Code never leaves your VPC. Fully encrypted relay connects your mobile device back to your secure environment. We have zero data retention.',
   },
 ]
 
@@ -407,7 +407,7 @@ export default function LandingPage() {
           </Link>
           <MagneticButton>
             <Link to="/login" aria-label="Get started with Synapse" className="btn-primary text-sm px-5 py-2">
-              Get Started <ArrowRight size={14} className="ml-1 inline" />
+              Start Prompting Now <ArrowRight size={14} className="ml-1 inline" />
             </Link>
           </MagneticButton>
         </div>
@@ -424,19 +424,17 @@ export default function LandingPage() {
 
         <FadeIn delay={0.2}>
           <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] mb-5 sm:mb-6 text-balance">
-            Run your PC's AI Agents{' '}
+            Zero downtime.{' '}
             <br className="hidden sm:block" />
-            <span className="gradient-text">from your phone.</span>
+            <span className="gradient-text">Maximum velocity.</span>
             <br />
-            <span className="text-white/80 text-2xl sm:text-4xl md:text-5xl">Zero lag. Zero setup.</span>
+            <span className="text-white/80 text-2xl sm:text-4xl md:text-5xl">Your team's AI co-developer.</span>
           </h1>
         </FadeIn>
 
         <FadeIn delay={0.35}>
           <p className="text-sm sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed text-balance px-2">
-            Connect to your local Copilot, Claude, or Gemini CLI in seconds.{' '}
-            <code className="text-synapse-300 bg-white/[0.04] px-1.5 py-0.5 rounded text-xs sm:text-sm">pip install synapse-agent</code>{' '}
-            and start coding from the cafeteria.
+            Ship faster at your desk, and triage critical production issues from your phone—even during dinner. Reduce your team's MTTR to minutes. Synapse connects securely to your local environment.
           </p>
         </FadeIn>
 
@@ -451,7 +449,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <MagneticButton>
               <Link to="/login" aria-label="Get started with Synapse" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2.5 w-full sm:w-auto justify-center">
-                Start Free Trial
+                Connect Your First Agent (Free)
                 <ArrowRight size={16} />
               </Link>
             </MagneticButton>
@@ -583,7 +581,7 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-2xl bg-synapse-500/10 flex items-center justify-center">
                   <Cpu className="text-synapse-400" size={22} />
                 </div>
-                <h3 className="text-base font-semibold">100% Local Execution</h3>
+                  <h3 className="text-base font-semibold">Keep Your Code Private</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">
                   Your AI tools run entirely on your machine. Your code, API keys, and context never leave your device.
                   Zero cloud processing.
@@ -652,8 +650,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <MagneticButton>
               <Link to="/login" aria-label="Get started with Synapse" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2.5 w-full sm:w-auto justify-center">
-                Get Started Free
-                <ArrowRight size={16} />
+                Start Prompting Now →
               </Link>
             </MagneticButton>
             <div className="mt-2 sm:mt-0">
