@@ -170,9 +170,11 @@ export default function AppLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="h-full flex-1"
+            className="flex-1 flex flex-col min-h-0 relative"
           >
-            <div id="main-content"><Outlet /></div>
+            <div id="main-content" className="flex flex-col flex-1 min-h-0">
+              <Outlet />
+            </div>
           </motion.div>
         </main>
 

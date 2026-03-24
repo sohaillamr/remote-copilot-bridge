@@ -59,7 +59,15 @@ export default function Chat() {
 
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('synapse_chat_sidebar')
+    if (saved !== null) return saved === 'true'
+    return window.innerWidth >= 1024
+  })
+
+  useEffect(() => {
+    localStorage.setItem('synapse_chat_sidebar', String(sidebarOpen))
+  }, [sidebarOpen])
   const [editingConvId, setEditingConvId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
 
@@ -400,7 +408,7 @@ export default function Chat() {
   }, [commitMsg, isConnected, isWaiting, sendGit])
 
   return (
-    <div className="flex h-full" role="main" aria-label="Chat interface">
+    <div className="flex flex-1 w-full min-h-0 relative" role="main" aria-label="Chat interface">       
       {/* ─── Conversation Sidebar ─── */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -521,9 +529,21 @@ export default function Chat() {
                 <span className="sm:hidden">{agentReachable ? 'Online' : isConnected ? 'Channel' : 'Off'}</span>
               </div>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowGitPanel(v => !v)}
+            <div className="flex items-center gap-2">
+              {conversationId && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => { if(confirm('Delete this conversation?')) deleteConversation(conversationId) }}
+                  className="flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors bg-white/[0.04] text-red-500/80 hover:bg-red-500/10 hover:text-red-400"
+                  title="Delete conversation"
+                >
+                  <Trash2 size={13} />
+                  <span className="hidden sm:inline">Delete</span>
+                </motion.button>
+              )}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowGitPanel(v => !v)}
               disabled={!isConnected}
               className={`flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30 ${
                 showGitPanel ? 'bg-orange-500/15 text-orange-400' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'
@@ -533,6 +553,7 @@ export default function Chat() {
               <GitBranch size={13} />
               <span className="hidden sm:inline">Git</span>
             </motion.button>
+            </div>
           </div>
           {/* Bottom row: tool + model selectors (scrollable on mobile) */}
           <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 pb-2.5 sm:pb-3 overflow-x-auto scrollbar-hide">
