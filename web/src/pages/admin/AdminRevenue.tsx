@@ -1,15 +1,16 @@
 ﻿import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { DollarSign, TrendingDown, CreditCard } from 'lucide-react'
+import { DollarSign, TrendingDown, CreditCard, Check, X, ExternalLink } from 'lucide-react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,   
   BarChart, Bar,
 } from 'recharts'
 
 export default function AdminRevenue() {
   const [mrr, setMrr] = useState<{ month: string; mrr: number }[]>([])
-  const [churn, setChurn] = useState<{ month: string; churned: number; rate: number }[]>([])
-  const [events, setEvents] = useState<{ id: string; provider: string; event_name: string; payload: Record<string, any>; created_at: string }[]>([])
+  const [churn, setChurn] = useState<{ month: string; churned: number; rate: number }[]>([])                                                                      
+  const [events, setEvents] = useState<{ id: string; provider: string; event_name: string; payload: Record<string, any>; created_at: string }[]>([])              
+  const [manualPayments, setManualPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function AdminRevenue() {
   }, [])
 
   async function loadAll() {
-    const [mrrRes, churnRes, eventsRes] = await Promise.all([
+    const [mrrRes, churnRes, eventsRes, paymentsRes] = await Promise.all([
       supabase.rpc('admin_mrr_over_time', { months: 12 }),
       supabase.rpc('admin_churn_by_month', { months: 6 }),
       supabase
@@ -25,13 +26,29 @@ export default function AdminRevenue() {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50),
+      supabase
+        .from('manual_payments')
+        .select('*, user:user_id(display_name, email)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false }),
     ])
     setMrr(mrrRes.data || [])
     setChurn(churnRes.data || [])
     setEvents(eventsRes.data || [])
+    setManualPayments(paymentsRes.data || [])
     setLoading(false)
   }
 
+  async function handleApprove(id: string) {
+    if (!confirm('Are you sure you want to approve this payment?')) return;
+    await supabase.rpc('admin_approve_payment', { p_payment_id: id });
+    loadAll();
+  }
+
+  async function handleReject(id: string) {
+    if (!confirm('Are you sure you want to reject this payment?')) return;
+    await supabase.rpc('admin_reject_payment', { p_payment_id: id });
+    loadAll();
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-gray-500">Loading revenue data...</div>
   }
@@ -101,6 +118,61 @@ export default function AdminRevenue() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Pending Manual Payments */}
+      <div className="card">
+        <h3 className="font-semibold mb-4">Pending Instapay Manual Payments</h3>
+        {manualPayments.length === 0 ? (
+          <p className="text-gray-500 text-center py-6">No pending manual payments</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b border-gray-800">
+                  <th className="pb-3 font-medium">User</th>
+                  <th className="pb-3 font-medium">Amount</th>
+                  <th className="pb-3 font-medium">Proof</th>
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {manualPayments.map(mp => (
+                  <tr key={mp.id} className="border-b border-gray-800/50">
+                    <td className="py-3">
+                      <div>
+                        <p className="text-gray-200">{mp.user?.display_name || 'Unknown'}</p>
+                        <p className="text-xs text-gray-500">{mp.user?.email}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 text-gray-300">
+                      {mp.amount} {mp.currency}
+                    </td>
+                    <td className="py-3">
+                      <a href={mp.screenshot_url} target="_blank" rel="noopener noreferrer" className="text-synapse-400 hover:text-synapse-300 flex items-center gap-1">
+                        View Receipt <ExternalLink size={12} />
+                      </a>
+                    </td>
+                    <td className="py-3 text-gray-400">
+                      {new Date(mp.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleApprove(mp.id)} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="Approve & Activate">
+                          <Check size={16} />
+                        </button>
+                        <button onClick={() => handleReject(mp.id)} className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors" title="Reject">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Recent payment events */}

@@ -33,6 +33,13 @@ export default function Settings() {
   const [eduError, setEduError] = useState('')
   const [exporting, setExporting] = useState(false)
 
+  // Instapay state
+  const [instapayReceipt, setInstapayReceipt] = useState<File | null>(null)
+  const [instapayAmount, setInstapayAmount] = useState('')
+  const [instapayUploading, setInstapayUploading] = useState(false)
+  const [instapaySuccess, setInstapaySuccess] = useState(false)
+  const [instapayError, setInstapayError] = useState('')
+
   const isStudent = profile?.plan_tier === 'student'
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   const pairUrl = qrToken ? `${window.location.origin}/pair?token=${qrToken}` : ''
@@ -208,6 +215,46 @@ export default function Settings() {
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleInstapaySubmit() {
+    if (!user || !instapayReceipt || !instapayAmount) return
+    setInstapayUploading(true)
+    setInstapayError('')
+    try {
+      const fileExt = instapayReceipt.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, instapayReceipt)
+        
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName)
+
+      const { error: dbError } = await supabase.from('manual_payments').insert({
+        user_id: user.id,
+        amount: parseFloat(instapayAmount),
+        currency: paymentPlan === 'usd' ? 'USD' : 'EGP',
+        screenshot_url: urlData.publicUrl
+      })
+
+      if (dbError) throw dbError
+
+      setInstapaySuccess(true)
+      setTimeout(() => {
+        setShowPaymentModal(false)
+        setInstapaySuccess(false)
+        setInstapayReceipt(null)
+        setInstapayAmount('')
+      }, 3000)
+
+    } catch (err: any) {
+      setInstapayError(err.message || 'Upload failed')
+    } finally {
+      setInstapayUploading(false)
+    }
   }
 
   const statusColors: Record<string, string> = {
@@ -535,22 +582,53 @@ export default function Settings() {
                     {isStudent && ' â€¢ Student discount applied'}
                   </p>
                 </div>
-                <div className="space-y-3 mb-6 text-sm text-gray-400">
-                  {['Unlimited AI prompts', 'All CLI tools (Copilot, Claude, Geminiâ€¦)', 'Model selection', 'File browser & shell access', 'Priority support'].map((f, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Check size={14} className="text-emerald-400 shrink-0" />
-                      <span>{f}</span>
+                <div className="space-y-4 mb-6 text-sm text-gray-400">
+                  <div className="bg-synapse-500/10 p-4 rounded-xl border border-synapse-500/20 text-center">
+                    <p className="text-xs text-gray-400 mb-2">Transfer to Instapay:</p>
+                    <p className="font-mono text-lg font-bold text-synapse-400 select-all">+201063022623</p>
+                    <p className="text-xs text-gray-500 mt-1">Name: Sohail Amr Anwar Mohamed</p>
+                  </div>
+                  
+                  {instapaySuccess ? (
+                    <div className="bg-emerald-500/10 text-emerald-400 p-4 rounded-xl text-center border border-emerald-500/20">
+                      Payment submitted! We will review and activate your subscription shortly.
                     </div>
-                  ))}
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-600 block mb-1">Amount Transferred ({paymentPlan === 'usd' ? 'USD' : 'EGP'})</label>
+                        <input 
+                          type="number" 
+                          className="input w-full" 
+                          placeholder={isStudent ? (paymentPlan === 'usd' ? '4' : '200') : (paymentPlan === 'usd' ? '5' : '250')} 
+                          value={instapayAmount}
+                          onChange={(e) => setInstapayAmount(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 block mb-1">Payment Screenshot (Receipt)</label>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="input w-full text-xs" 
+                          onChange={(e) => setInstapayReceipt(e.target.files?.[0] || null)}
+                        />
+                      </div>
+                      {instapayError && (
+                        <p className="text-xs text-red-400">{instapayError}</p>
+                      )}
+                      <motion.button
+                        onClick={handleInstapaySubmit}
+                        disabled={!instapayAmount || !instapayReceipt || instapayUploading}
+                        whileTap={{ scale: 0.98 }}
+                        className="btn-primary w-full py-2.5 flex justify-center items-center gap-2 mt-2"
+                      >
+                        {instapayUploading ? <Loader2 size={16} className="animate-spin" /> : 'Submit Payment Info'}
+                      </motion.button>
+                    </div>
+                  )}
                 </div>
-                <a
-                  href={isStudent ? (paymentPlan === 'usd' ? 'https://accept.paymob.com/synapse-student-usd' : 'https://accept.paymob.com/synapse-student-egp') : (paymentPlan === 'usd' ? 'https://accept.paymob.com/synapse-usd' : 'https://accept.paymob.com/synapse-egp')}
-                  target="_blank" rel="noopener noreferrer"
-                  className="btn-primary w-full text-center block text-sm py-3 font-medium"
-                >
-                  Continue to Payment
-                </a>
-                <p className="text-[10px] text-gray-700 text-center mt-3">Secure payment via Paymob. Cancel anytime.</p>
+                <p className="text-[10px] text-gray-700 text-center mt-3">Cancel anytime. Subscriptions are processed manually via Instapay.</p>
               </div>
             </motion.div>
           </>

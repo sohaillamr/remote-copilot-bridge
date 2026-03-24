@@ -21,6 +21,7 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'))
 const AdminUsage = lazy(() => import('./pages/admin/AdminUsage'))
 const AdminSystem = lazy(() => import('./pages/admin/AdminSystem'))
+const Guide = lazy(() => import('./pages/Guide'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const NotFound = lazy(() => import('./pages/NotFound'))
@@ -112,7 +113,8 @@ function AnimatedRoutes() {
               <Route path="system" element={<AdminSystem />} />
             </Route>
 
-            {/* Legal */}
+            {/* Legal & Guide */}
+            <Route path="/guide" element={<Guide />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
 
