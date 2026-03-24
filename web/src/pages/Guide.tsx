@@ -104,7 +104,7 @@ export default function Guide() {
                   </div>
                   <div className="terminal-body space-y-1">
                     <p><span className="text-emerald-400">$</span> <span className="text-gray-300">synapse start</span></p>
-                    <p className="text-cyan-400/80">âš¡ Synapse Agent connected and relaying to cloud</p>
+                    <p className="text-cyan-400/80">⚡ Synapse Agent connected and relaying to cloud</p>
                   </div>
                 </div>
               </div>

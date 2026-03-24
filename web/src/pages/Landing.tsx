@@ -24,7 +24,7 @@ const capabilities = [
   {
     icon: Cpu,
     title: 'Multi-Model Support',
-    desc: 'Run Copilot, Claude, Gemini, Codex, or Aider â€” all from one interface. Switch models per prompt.',
+    desc: 'Run Copilot, Claude, Gemini, Codex, or Aider — all from one interface. Switch models per prompt.',
   },
   {
     icon: Radio,
@@ -34,7 +34,7 @@ const capabilities = [
   {
     icon: ScanSearch,
     title: 'Auto-Detection',
-    desc: 'Run synapse start â€” it finds every AI CLI installed on your machine automatically.',
+    desc: 'Run synapse start — it finds every AI CLI installed on your machine automatically.',
   },
   {
     icon: Mic,
@@ -44,7 +44,7 @@ const capabilities = [
   {
     icon: MonitorSmartphone,
     title: 'File Browser & Shell',
-    desc: 'Browse your project files, read code, and run shell commands â€” all from your phone.',
+    desc: 'Browse your project files, read code, and run shell commands — all from your phone.',
   },
   {
     icon: Code2,
@@ -64,7 +64,7 @@ const steps = [
   {
     icon: Globe,
     title: 'Open the Portal',
-    desc: 'Log in from any device â€” phone, tablet, or another PC. Pick your tool and start prompting.',
+    desc: 'Log in from any device — phone, tablet, or another PC. Pick your tool and start prompting.',
     gradient: 'from-blue-500/20 to-cyan-500/20',
     code: 'synapse-green.vercel.app/app/chat',
   },
@@ -84,11 +84,11 @@ const useCases = [
   },
   {
     title: 'Voice-First Workflow',
-    desc: 'Speak your prompt while cooking â€” your laptop executes the code. No keyboard needed, just your voice and your AI tools.',
+    desc: 'Speak your prompt while cooking — your laptop executes the code. No keyboard needed, just your voice and your AI tools.',
   },
   {
     title: 'Zero Trust Security',
-    desc: 'Your agent runs locally and nothing leaves your machine. Fully encrypted relay â€” we never see your code.',
+    desc: 'Your agent runs locally and nothing leaves your machine. Fully encrypted relay — we never see your code.',
   },
 ]
 
@@ -151,7 +151,7 @@ function DemoAnimation() {
             className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2"
           >
             <p className="text-xs text-gray-400 font-mono">
-              <span className="text-emerald-400">âœ“</span> Total: 2,847 lines across 23 files
+              <span className="text-emerald-400">✓</span> Total: 2,847 lines across 23 files
             </p>
           </motion.div>
         </div>
@@ -178,7 +178,7 @@ function DemoAnimation() {
             transition={{ delay: 0.5 }}
             className="text-gray-500"
           >
-            <span className="text-synapse-400">âš¡</span> Synapse Agent running...
+            <span className="text-synapse-400">⚡</span> Synapse Agent running...
           </motion.p>
           <motion.p
             initial={{ opacity: 0 }}
@@ -202,7 +202,7 @@ function DemoAnimation() {
             transition={{ delay: 1.5 }}
             className="text-emerald-400"
           >
-            âœ“ Result sent to phone
+            ✓ Result sent to phone
           </motion.p>
         </div>
       </div>
@@ -275,7 +275,7 @@ function PricingSection() {
                       <span className="text-gray-500">/{yearly ? 'year' : 'month'}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {yearly ? '2,400 EGP/year â€¢ save 600 EGP' : '250 EGP/month'}
+                      {yearly ? '2,400 EGP/year • save 600 EGP' : '250 EGP/month'}
                     </p>
                   </motion.div>
                 </AnimatePresence>
@@ -342,7 +342,7 @@ function PricingSection() {
                       <span className="text-gray-500">/{yearly ? 'year' : 'month'}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {yearly ? '1,920 EGP/year â€¢ save 480 EGP' : '200 EGP/month â€¢ .edu required'}
+                      {yearly ? '1,920 EGP/year • save 480 EGP' : '200 EGP/month • .edu required'}
                     </p>
                   </motion.div>
                 </AnimatePresence>
@@ -390,7 +390,7 @@ export default function LandingPage() {
     <div className="relative min-h-screen overflow-hidden">
       <GridBackground />
 
-      {/* â”€â”€â”€ Navbar (simplified â€” logo + single CTA) â”€â”€â”€ */}
+      {/* â”€â”€â”€ Navbar (simplified — logo + single CTA) â”€â”€â”€ */}
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -556,7 +556,7 @@ export default function LandingPage() {
             <p className="text-sm text-synapse-400 uppercase tracking-widest mb-3">Built for Developers, by Developers</p>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-tight">Security you can trust</h2>
             <p className="text-gray-400 text-sm sm:text-base mt-4 max-w-2xl mx-auto">
-              Your code never leaves your machine. We relay prompts â€” nothing more.
+              Your code never leaves your machine. We relay prompts — nothing more.
             </p>
           </div>
         </FadeIn>

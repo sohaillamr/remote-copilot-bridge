@@ -57,7 +57,7 @@ export default function AdminRevenue() {
 
   const currentMrr = mrr.length > 0 ? mrr[mrr.length - 1].mrr : 0
   const prevMrr = mrr.length > 1 ? mrr[mrr.length - 2].mrr : 0
-  const mrrGrowth = prevMrr > 0 ? ((currentMrr - prevMrr) / prevMrr * 100).toFixed(1) : 'â€”'
+  const mrrGrowth = prevMrr > 0 ? ((currentMrr - prevMrr) / prevMrr * 100).toFixed(1) : '—'
 
   return (
     <div className="space-y-8">
@@ -202,7 +202,7 @@ export default function AdminRevenue() {
                     </td>
                     <td className="py-2 text-gray-400">
                       {ev.payload?.data?.attributes?.total_formatted ||
-                       ev.payload?.amount_cents ? `${(ev.payload.amount_cents / 100).toFixed(2)} EGP` : 'â€”'}
+                       ev.payload?.amount_cents ? `${(ev.payload.amount_cents / 100).toFixed(2)} EGP` : '—'}
                     </td>
                     <td className="py-2 text-gray-400">{new Date(ev.created_at).toLocaleString()}</td>
                   </tr>

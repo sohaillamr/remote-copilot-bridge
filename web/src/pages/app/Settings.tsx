@@ -328,6 +328,20 @@ export default function Settings() {
                 <span className="text-sm font-mono text-gray-400">{new Date(profile.trial_ends_at).toLocaleDateString()}</span>
               </div>
             )}
+            {profile?.subscription_status === 'active' && profile.subscription_ends_at && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 text-sm">Subscribed On</span>
+                  <span className="text-sm font-mono text-gray-400">
+                    {new Date(new Date(profile.subscription_ends_at).getTime() - 30*24*60*60*1000).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 text-sm">Valid Until</span>
+                  <span className="text-sm font-mono text-gray-400">{new Date(profile.subscription_ends_at).toLocaleDateString()}</span>
+                </div>
+              </>
+            )}
             {profile?.subscription_provider && (
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 text-sm">Provider</span>
@@ -381,7 +395,7 @@ export default function Settings() {
           </p>
           {isLocalhost && (
             <p className="text-xs text-amber-400/80 mb-3">
-              âš  QR login works best in production. Localhost URLs won't be reachable from other devices.
+              ⚠️ QR login works best in production. Localhost URLs won't be reachable from other devices.
             </p>
           )}
           {qrToken ? (
@@ -398,7 +412,7 @@ export default function Settings() {
                 />
               </div>
 
-              {/* Pairing code â€” big and prominent */}
+              {/* Pairing code — big and prominent */}
               <div className="w-full max-w-[280px]">
                 <p className="text-xs text-gray-500 text-center mb-2">Or enter this code on your device's login page:</p>
                 <div
@@ -411,7 +425,7 @@ export default function Settings() {
                   </span>
                 </div>
                 <p className="text-[10px] text-gray-600 text-center mt-2">
-                  {copied ? 'âœ“ Copied!' : 'Tap code to copy â€¢ Valid for 24 hours'}
+                  {copied ? '✓ Copied!' : 'Tap code to copy • Valid for 24 hours'}
                 </p>
               </div>
 
@@ -450,7 +464,7 @@ export default function Settings() {
           </div>
           <p className="text-sm text-gray-400 mb-5">
             Install the agent on any computer, then log in with your email.
-            That's it â€” no tokens or keys needed.
+            That's it — no tokens or keys needed.
           </p>
           <div className="space-y-4">
             <div>
@@ -481,7 +495,7 @@ export default function Settings() {
                 <div className="terminal-body space-y-1">
                   <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse login</span></p>
                   <p className="text-gray-600">  Email: <span className="text-amber-400/70">{user?.email || 'you@example.com'}</span></p>
-                  <p className="text-gray-600">  <span className="text-emerald-400/70">âœ‰ Magic link sent! Check your inbox.</span></p>
+                  <p className="text-gray-600">  <span className="text-emerald-400/70">✉ Magic link sent! Check your inbox.</span></p>
                 </div>
               </div>
             </div>
@@ -493,7 +507,7 @@ export default function Settings() {
               <div className="terminal">
                 <div className="terminal-body space-y-1">
                   <p><span className="text-emerald-400">$</span> <span className="text-gray-400">synapse start</span></p>
-                  <p className="text-gray-600">  <span className="text-cyan-400/70">âš¡ Synapse Agent connected</span></p>
+                  <p className="text-gray-600">  <span className="text-cyan-400/70">⚡ Synapse Agent connected</span></p>
                   <p className="text-gray-600">  <span className="text-gray-500">Detected: copilot, claude, gemini</span></p>
                 </div>
               </div>
@@ -564,11 +578,11 @@ export default function Settings() {
                     <CreditCard className="text-synapse-400" size={22} />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">
-                    {paymentPlan === 'usd' ? `Subscribe â€” ${isStudent ? '$4' : '$5'}/mo` : `Subscribe â€” ${isStudent ? '200' : '250'} EGP/mo`}
+                    {paymentPlan === 'usd' ? `Subscribe — ${isStudent ? '$4' : '$5'}/mo` : `Subscribe — ${isStudent ? '200' : '250'} EGP/mo`}
                   </h3>
                   <p className="text-xs text-gray-500">
                     Unlimited prompts, all AI tools, priority support
-                    {isStudent && ' â€¢ Student discount applied'}
+                    {isStudent && ' • Student discount applied'}
                   </p>
                 </div>
                 <div className="space-y-4 mb-6 text-sm text-gray-400">

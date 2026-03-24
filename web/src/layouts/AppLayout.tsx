@@ -106,7 +106,7 @@ export default function AppLayout() {
         Skip to main content
       </a>
       <div className="flex h-screen bg-[#09090b]">
-        {/* Desktop Sidebar â€” always visible at md+ */}
+        {/* Desktop Sidebar — always visible at md+ */}
         <motion.aside
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -116,7 +116,7 @@ export default function AppLayout() {
           {sidebarInner}
         </motion.aside>
 
-        {/* Mobile overlay + drawer â€” keyed motion elements, no Fragment wrapper */}
+        {/* Mobile overlay + drawer — keyed motion elements, no Fragment wrapper */}
         <AnimatePresence>
           {sidebarOpen && (
             <motion.div
