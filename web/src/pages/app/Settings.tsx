@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import TeamSettings from './TeamSettings'
 import { supabase } from '../../lib/supabase'
-import { User, Users, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, GraduationCap, Smartphone, Download, Trash2, ShieldAlert } from 'lucide-react'
+import { User, Users, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, Smartphone, Download, Trash2, ShieldAlert } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
 /** Generate a 12-char alphanumeric pairing code (no ambiguous chars). */
@@ -16,7 +16,7 @@ function generatePairCode(): string {
 }
 
 export default function Settings() {
-  const { user, profile, signOut, refreshProfile } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -25,33 +25,20 @@ export default function Settings() {
   // Plan & Payment state
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<'pro' | 'team'>('pro')
-  const [seatCount, setSeatCount] = useState<number>(1)
-  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'team'>('pro')
-  const [seatCount, setSeatCount] = useState<number>(1)
+    const [seatCount, setSeatCount] = useState<number>(1)
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState('')
               const [exporting, setExporting] = useState(false)
 
 
-  // Pricing Calculation
-  const getPricePerSeat = (seats: number) => {
-    if (seats >= 10) return 8;
-    if (seats >= 5) return 10;
-    return 12; // Base price dropped from 24 to 12
-  }
-  
-  const totalPrice = selectedPlan === 'pro' ? 12 : getPricePerSeat(seatCount) * seatCount;
-
-
-  // Pricing Calculation
-  const getPricePerSeat = (seats: number) => {
-    if (seats >= 10) return 8;
-    if (seats >= 5) return 10;
-    return 12; // Base price dropped from 24 to 12
-  }
-  
-  const totalPrice = selectedPlan === 'pro' ? 12 : getPricePerSeat(seatCount) * seatCount;
+      // Pricing Calculation
+    const getPricePerSeat = (seats: number) => {
+      if (seats >= 10) return 8;
+      if (seats >= 5) return 10;
+      return 12;
+    }
+    const totalPrice = selectedPlan === 'pro' ? 12 : getPricePerSeat(seatCount) * seatCount;
 
   // Instapay state
   const [instapayReceipt, setInstapayReceipt] = useState<File | null>(null)

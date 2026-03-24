@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap, Terminal, Globe, Shield, ArrowRight, Check, Sparkles,
   Lock, Mic, Copy, CheckCheck,
-  Smartphone, Monitor, Wifi, GraduationCap,
-  Cpu, Radio, ScanSearch, MonitorSmartphone, Code2, FolderLock, Users,  Users,  Users, 
+  Smartphone, Monitor, Wifi, 
+  Cpu, Radio, ScanSearch, MonitorSmartphone, Code2, FolderLock, Users, 
 } from 'lucide-react'
 import GridBackground from '../components/GridBackground'
 import { FadeIn, StaggerContainer, StaggerItem, GlowCard, MagneticButton } from '../components/Animations'

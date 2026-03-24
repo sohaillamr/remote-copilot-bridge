@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Users, UserPlus, X, Mail, Shield, Check, Copy } from 'lucide-react'
-import { toast } from 'sonner'
+import { Users, UserPlus, X, Mail, Shield } from 'lucide-react'
+import { useRelay } from '../../contexts/AgentRelayContext'
 import { FadeIn } from '../../components/Animations'
 
 interface Team {
@@ -27,6 +27,7 @@ interface TeamInvite {
 
 export default function TeamSettings() {
   const { user } = useAuth()
+  const { addToast } = useRelay()
   const [team, setTeam] = useState<Team | null>(null)
   const [members, setMembers] = useState<TeamMember[]>([])
   const [invites, setInvites] = useState<TeamInvite[]>([])
@@ -78,7 +79,7 @@ export default function TeamSettings() {
     if (!team || !inviteEmail) return
     const currentSeats = members.length + invites.length + 1 // including owner
     if (currentSeats >= team.seat_count) {
-      toast.error('Seat limit reached. Upgrade team seats first.')
+      addToast('Seat limit reached. Upgrade team seats first.')
       return
     }
 
@@ -87,9 +88,9 @@ export default function TeamSettings() {
       .insert({ team_id: team.id, email: inviteEmail, role: inviteRole })
     
     if (error) {
-      toast.error('Failed to send invite')
+      addToast('Failed to send invite', 'error')
     } else {
-      toast.success('Invite sent!')
+      addToast('Invite sent!', 'success')
       setInviteEmail('')
       loadInvites(team.id)
     }

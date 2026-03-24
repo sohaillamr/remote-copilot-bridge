@@ -13,11 +13,8 @@ export default function PairPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [pairToken, setPairToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-
   const pairUrl = pairToken ? `${window.location.origin}/pair?token=${pairToken}` : ''
-  const displayCode = pairToken
-    ? `${pairToken.slice(0, 4)}-${pairToken.slice(4, 8)}-${pairToken.slice(8, 12)}`
-    : ''
+
 
   useEffect(() => {
     const token = searchParams.get('token')

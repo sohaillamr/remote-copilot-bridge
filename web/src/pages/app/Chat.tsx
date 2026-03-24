@@ -59,7 +59,7 @@ export default function Chat() {
 
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
+  
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('synapse_chat_sidebar')
     if (saved !== null) return saved === 'true'
