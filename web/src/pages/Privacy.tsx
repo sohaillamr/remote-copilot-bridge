@@ -53,7 +53,7 @@ export default function Privacy() {
                 QR pairing persistence. Agent hostname and OS for device management.
               </li>
               <li>
-                <strong className="text-gray-300">Payment info:</strong> Processed by Paymob. We
+                <strong className="text-gray-300">Payment info:</strong> Processed securely. We
                 store transaction IDs but never credit card numbers.
               </li>
             </ul>
@@ -107,7 +107,7 @@ export default function Privacy() {
                 and real-time relay.
               </li>
               <li>
-                <strong className="text-gray-300">Paymob:</strong> Payment processing for
+                <strong className="text-gray-300">Instapay:</strong> Payment processing for
                 subscriptions.
               </li>
               <li>

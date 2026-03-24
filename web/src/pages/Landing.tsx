@@ -302,7 +302,7 @@ function PricingSection() {
               <div className="mt-4 pt-4 border-t border-white/[0.04]">
                 <p className="text-[10px] text-gray-600 text-center mb-2">Accepted payments</p>
                 <div className="flex items-center justify-center gap-2 flex-wrap">
-                  {['Visa', 'Mastercard', 'Vodafone Cash', 'InstaPay', 'Paymob'].map(m => (
+                  {['InstaPay (Egypt)', 'Manual Transfer'].map(m => (
                     <span key={m} className="text-[10px] text-gray-500 bg-white/[0.03] px-2 py-1 rounded-md border border-white/[0.04]">
                       {m}
                     </span>
@@ -368,7 +368,7 @@ function PricingSection() {
               <div className="mt-4 pt-4 border-t border-white/[0.04]">
                 <p className="text-[10px] text-gray-600 text-center mb-2">Accepted payments</p>
                 <div className="flex items-center justify-center gap-2 flex-wrap">
-                  {['Visa', 'Mastercard', 'Vodafone Cash', 'InstaPay', 'Paymob'].map(m => (
+                  {['InstaPay (Egypt)', 'Manual Transfer'].map(m => (
                     <span key={m} className="text-[10px] text-gray-500 bg-white/[0.03] px-2 py-1 rounded-md border border-white/[0.04]">
                       {m}
                     </span>

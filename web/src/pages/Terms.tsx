@@ -59,7 +59,7 @@ export default function Terms() {
             <p>
               Synapse offers a 7-day free trial. After the trial period, a paid subscription is
               required to continue using the Service. Payments are processed through our payment
-              provider (Paymob). You may cancel at any time &mdash; access continues until the end
+              provider. You may cancel at any time &mdash; access continues until the end
               of your billing period.
             </p>
           </section>

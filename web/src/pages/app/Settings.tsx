@@ -342,27 +342,16 @@ export default function Settings() {
                 </div>
               )}
               {profile?.subscription_status === 'active' ? (
-                <a
-                  href="https://app.lemonsqueezy.com/my-orders"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary w-full text-center block text-sm py-2.5"
-                >
-                  Manage Subscription
-                </a>
+                <button disabled className="btn-secondary w-full text-center block text-sm py-2.5 opacity-50 cursor-not-allowed">
+                  Subscription Active
+                </button>
               ) : (
                 <div className="space-y-2">
                   <button
-                    onClick={() => { setPaymentPlan('usd'); setShowPaymentModal(true) }}
+                    onClick={() => { setPaymentPlan('egp'); setShowPaymentModal(true) }}
                     className="btn-primary w-full text-center block text-sm py-2.5"
                   >
-                    Subscribe &mdash; {isStudent ? '$4' : '$5'}/month
-                  </button>
-                  <button
-                    onClick={() => { setPaymentPlan('egp'); setShowPaymentModal(true) }}
-                    className="w-full text-center text-[11px] text-gray-600 hover:text-synapse-400 transition-colors py-1"
-                  >
-                    Egypt? Pay with Paymob ({isStudent ? '200' : '250'} EGP)
+                    Subscribe with Instapay &mdash; {isStudent ? '200' : '250'} EGP
                   </button>
                   {!isStudent && (
                     <button
@@ -370,7 +359,7 @@ export default function Settings() {
                       className="w-full text-center text-[11px] text-gray-600 hover:text-synapse-400 transition-colors py-1 flex items-center justify-center gap-1"
                     >
                       <GraduationCap size={11} />
-                      Student? Get it for $4/month
+                      Student? Get it for 200 EGP / month
                     </button>
                   )}
                 </div>

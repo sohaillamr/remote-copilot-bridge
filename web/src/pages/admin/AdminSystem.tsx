@@ -156,7 +156,7 @@ export default function AdminSystem() {
             { name: 'Vercel', url: 'https://vercel.com/dashboard' },
             { name: 'Sentry', url: 'https://sentry.io' },
             { name: 'UptimeRobot', url: 'https://uptimerobot.com/dashboard' },
-            { name: 'Lemon Squeezy', url: 'https://app.lemonsqueezy.com' },
+            
             { name: 'LogSnag', url: 'https://app.logsnag.com' },
           ].map(link => (
             <a
