@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+import keyring
+import logging
 
 
 # â”€â”€ Synapse cloud config (public, safe to embed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -52,31 +54,67 @@ def ensure_config_dir() -> Path:
 
 def load_config() -> dict[str, Any]:
     """Load config from ~/.synapse/config.yaml. Returns defaults if missing."""
-    if not CONFIG_FILE.exists():
-        return dict(DEFAULT_CONFIG)
-
-    try:
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-    except Exception:
-        return dict(DEFAULT_CONFIG)
-
-    # Merge with defaults so new keys are always present
     merged = dict(DEFAULT_CONFIG)
-    merged.update(data)
+    
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+                merged.update(data)
+        except Exception:
+            pass
+
+    # Try to load tokens from secure keyring vault
+    try:
+        kr_access = keyring.get_password("synapse_agent", "access_token")
+        kr_refresh = keyring.get_password("synapse_agent", "refresh_token")
+        if kr_access:
+            merged["access_token"] = kr_access
+        if kr_refresh:
+            merged["refresh_token"] = kr_refresh
+    except Exception as e:
+        logging.debug(f"Keyring read skipped: {e}")
+
     return merged
+
 
 
 def save_config(config: dict[str, Any]) -> None:
     """Save config to ~/.synapse/config.yaml with restricted permissions."""
     ensure_config_dir()
+    
+    # Store sensitive tokens in OS vault (keyring)
+    disk_config = dict(config)
+    
+    try:
+        # Save to keyring
+        acc = config.get("access_token", "")
+        ref = config.get("refresh_token", "")
+        if acc:
+            keyring.set_password("synapse_agent", "access_token", acc)
+        else:
+            try: keyring.delete_password("synapse_agent", "access_token")
+            except: pass
+            
+        if ref:
+            keyring.set_password("synapse_agent", "refresh_token", ref)
+        else:
+            try: keyring.delete_password("synapse_agent", "refresh_token")
+            except: pass
+            
+        # Remove from plain text yaml if vault succeeded
+        disk_config["access_token"] = ""
+        disk_config["refresh_token"] = ""
+    except Exception as e:
+        logging.debug(f"Vault storage skipped ({e}), falling back to disk auth storage.")
 
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        yaml.dump(disk_config, f, default_flow_style=False, sort_keys=False)
 
     # Restrict file permissions on Unix (owner-only read/write)
     if sys.platform != "win32":
         os.chmod(CONFIG_FILE, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+
 
 
 def get_value(key: str, default: Any = None) -> Any:
