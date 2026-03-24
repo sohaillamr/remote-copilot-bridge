@@ -304,9 +304,19 @@ export default function Settings() {
             <div className="pt-4 border-t border-white/[0.06] space-y-2">
               
               {profile?.subscription_status === 'active' ? (
-                <button disabled className="btn-secondary w-full text-center block text-sm py-2.5 opacity-50 cursor-not-allowed">
-                  Subscription Active
-                </button>
+                <div className="space-y-3 pt-2">
+                  <button disabled className="btn-secondary w-full text-center block text-sm py-2.5 opacity-50 cursor-not-allowed">
+                    {profile?.plan_tier === 'team' ? 'Team Subscription Active' : 'Pro Subscription Active'}
+                  </button>
+                  {profile?.plan_tier !== 'team' && (
+                    <button
+                      onClick={() => { setSelectedPlan('team'); setShowPaymentModal(true) }}
+                      className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2"
+                    >
+                      <CreditCard size={14} /> Upgrade to Team (Beta)
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-3 pt-2">
                   <button
