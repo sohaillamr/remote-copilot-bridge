@@ -19,27 +19,34 @@ export function useKeyboardShortcuts() {
       const target = e.target as HTMLElement
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 
+      // Esc: Unfocus inputs
+      if (e.key === 'Escape') {
+        if (isInput) target.blur()
+        return
+      }
+
       if (!mod) return
 
-      // Ctrl+1-4: Quick navigation (works even in inputs)
+      // Ctrl+1-4: Quick navigation
       if (e.key === '1') { e.preventDefault(); navigate('/app') }
       if (e.key === '2') { e.preventDefault(); navigate('/app/chat') }
       if (e.key === '3') { e.preventDefault(); navigate('/app/files') }
       if (e.key === '4') { e.preventDefault(); navigate('/app/settings') }
 
-      // Skip remaining shortcuts if in an input
-      if (isInput) return
-
-      // Ctrl+K: Focus chat input
+      // Ctrl+K: Focus search input in chat
       if (e.key === 'k') {
         e.preventDefault()
         if (!location.pathname.startsWith('/app/chat')) {
           navigate('/app/chat')
         }
-        // Focus the textarea after a tick
         setTimeout(() => {
-          const textarea = document.querySelector('textarea[aria-label="Prompt input"]') as HTMLTextAreaElement
-          textarea?.focus()
+          const searchInput = document.getElementById('conversation-search') as HTMLInputElement
+          if (searchInput) {
+            searchInput.focus()
+          } else {
+             const textarea = document.querySelector('textarea[placeholder*="Ask"]') as HTMLTextAreaElement
+             textarea?.focus()
+          }
         }, 100)
       }
     }

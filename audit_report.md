@@ -9,7 +9,7 @@
 ## 2. Recommended UX Enhancements
 - ? **Implemented:** Textarea Auto-Resize in Chat. Previously the textarea wouldn't expand when writing multi-line complex Prompts (like providing a whole block of code). 
 - **Global Loading States:** Better skeleton models to prevent UI pop-in when Supabase queries resolve in FileBrowser.tsx and Dashboard.tsx.
-- **Keyboard Shortcuts:** A lack of robust shortcuts inside the App. Features like Cmd+K for searching past chats, Esc to unfocus input.
+- ? **Keyboard Shortcuts (Implemented):**  A lack of robust shortcuts inside the App. Features like Cmd+K for searching past chats, Esc to unfocus input.
 - **Visual Feedback on Background Processing:** While LLM tools are streaming responses, a smoother streaming animation or clearer "Thought" blocks (similar to o1-preview) would clarify the Agent Relay's actions.
 
 ## 3. General Architecture Observations
