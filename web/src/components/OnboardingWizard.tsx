@@ -2,10 +2,20 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle, ChevronRight, X, Terminal, Smartphone, Copy, Check, ExternalLink, Zap } from 'lucide-react'
 import { useRelay } from '../contexts/AgentRelayContext'
+import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { QRCodeCanvas } from 'qrcode.react'
 
+function generatePairCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(12))
+  let code = ''
+  for (let i = 0; i < 12; i++) code += chars[bytes[i] % chars.length]
+  return code
+}
+
 export default function OnboardingWizard() {
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [step, setStep] = useState(1)
   const { agentReachable } = useRelay()
@@ -16,12 +26,14 @@ export default function OnboardingWizard() {
   const [pairUrl, setPairUrl] = useState<string>('')
 
   useEffect(() => {
-    // Only show if haven't completed
-    const completed = localStorage.getItem('synapse_onboarding_completed')
+    if (!user) return
+    const key = `synapse_onboarding_${user.id}`
+    const completed = localStorage.getItem(key)
     if (completed !== 'true') {
       setIsOpen(true)
+      localStorage.setItem(key, 'true')
     }
-  }, [])
+  }, [user])
 
   // Auto advance to step 4 if agent connects while on step 3
   useEffect(() => {
@@ -32,18 +44,37 @@ export default function OnboardingWizard() {
 
   // Generate pair token when reaching step 4
   useEffect(() => {
-    if (step === 4 && !pairToken) {
-      supabase.rpc('generate_device_token').then(({ data, error }) => {
-        if (!error && data?.token) {
-          setPairToken(data.token)
-          setPairUrl(`${window.location.origin}/pair?token=${data.token}`)
+    if (step === 4 && !pairToken && user) {
+      const createToken = async () => {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const session = sessionData?.session
+          if (!session) return
+
+          const code = generatePairCode()
+          const { error } = await supabase.from('device_tokens').insert({
+            user_id: user.id,
+            token: code,
+            access_token: session.access_token,
+            refresh_token: session.refresh_token || '',
+            expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+          })
+          if (!error) {
+            setPairToken(code)
+            setPairUrl(`${window.location.origin}/pair?token=${code}`)
+          }
+        } catch (e) {
+          console.error('Failed to generate device token:', e)
         }
-      })
+      }
+      createToken()
     }
-  }, [step, pairToken])
+  }, [step, pairToken, user])
 
   const dismiss = () => {
-    localStorage.setItem('synapse_onboarding_completed', 'true')
+    if (user) {
+      localStorage.setItem(`synapse_onboarding_${user.id}`, 'true')
+    }
     setIsOpen(false)
   }
 
