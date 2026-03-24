@@ -147,6 +147,19 @@ $$;
 
 
 -- Add plan and seat count to manual payments
+
+-- Ensure manual_payments exists before altering (in case 007 wasn't run directly on this instance)
+CREATE TABLE IF NOT EXISTS public.manual_payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    amount NUMERIC NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'EGP',
+    screenshot_url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reviewed_at TIMESTAMPTZ,
+    reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
 ALTER TABLE public.manual_payments ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'pro';
 ALTER TABLE public.manual_payments ADD COLUMN IF NOT EXISTS seats INT DEFAULT 1;
 
