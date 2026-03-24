@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useRelay } from '../../contexts/AgentRelayContext'
 import { FadeIn } from '../../components/Animations'
-import { Users, Lock, Globe, UserPlus, Mail, Shield, Zap, X, BarChart3, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Users, UserPlus, Mail, Shield, Zap, X, BarChart3, TrendingUp, AlertTriangle } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Team {
