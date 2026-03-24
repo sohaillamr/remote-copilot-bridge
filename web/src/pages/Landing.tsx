@@ -5,7 +5,7 @@ import {
   Zap, Terminal, Globe, Shield, ArrowRight, Check, Sparkles,
   Lock, Mic, Copy, CheckCheck,
   Smartphone, Monitor, Wifi, GraduationCap,
-  Cpu, Radio, ScanSearch, MonitorSmartphone, Code2, FolderLock,
+  Cpu, Radio, ScanSearch, MonitorSmartphone, Code2, FolderLock, Users,  Users,  Users, 
 } from 'lucide-react'
 import GridBackground from '../components/GridBackground'
 import { FadeIn, StaggerContainer, StaggerItem, GlowCard, MagneticButton } from '../components/Animations'
@@ -79,16 +79,16 @@ const steps = [
 
 const useCases = [
   {
+    title: 'Code from the Commute',
+    desc: 'Review PRs, test API endpoints, or spin up a dev server directly from your phone while on the train. Eliminate idle hours and ship faster.',
+  },
+  {
     title: 'Zero Downtime Dinners',
-    desc: 'Server goes down during dinner? Pull out your phone, access your secure workspace, and ask your AI agent to debug the logs. Resolve critical issues without a laptop.',
+    desc: 'Server goes down during dinner? Pull out your phone, access your secure workspace, and ask your AI agent to debug the logs instantly.',
   },
   {
-    title: 'Reduce MTTR for Agencies',
-    desc: 'Empower your software house to deliver insanely fast support and scale revenue. Equip your on-call team with remote shell execution and full repo context from anywhere.',
-  },
-  {
-    title: 'Zero Trust Security',
-    desc: 'Code never leaves your VPC. Fully encrypted relay connects your mobile device back to your secure environment. We have zero data retention.',
+    title: 'Team Context Engine (Beta)',
+    desc: 'Share codebase context across your entire squad. Stop answering "where is the auth webhook?" and let Synapse onboard junior developers instantly.',
   },
 ]
 
@@ -312,20 +312,23 @@ function PricingSection() {
             </div>
           </motion.div>
 
-          {/* Student Plan */}
+          {/* Team Plan */}
           <motion.div
             whileHover={{ y: -4 }}
             transition={{ duration: 0.3 }}
             className="relative group"
           >
-            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-b from-purple-500/20 via-transparent to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-500" />
+            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-b from-cyan-500/20 via-transparent to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-500" />
             <div className="relative glass-card rounded-2xl sm:rounded-3xl p-5 sm:p-8">
               <div className="text-center mb-5 sm:mb-8">
-                <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/10 mb-3 sm:mb-4">
-                  <GraduationCap size={12} />
-                  Students
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3.5 py-1.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/10 mb-3 sm:mb-4">
+                  <Users size={12} />
+                  Teams
                 </div>
-                <h3 className="text-lg sm:text-2xl font-bold mb-1">Synapse Student</h3>
+                <h3 className="text-lg sm:text-2xl font-bold mb-1 flex items-center justify-center gap-2">
+                  Synapse Team
+                  <span className="text-[9px] uppercase tracking-wider font-bold bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded-md">BETA</span>
+                </h3>
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={yearly ? 'y' : 'm'}
@@ -337,44 +340,49 @@ function PricingSection() {
                   >
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-4xl sm:text-5xl font-extrabold">
-                        {yearly ? '$38' : '$4'}
+                        {yearly ? '$19' : '$24'}
                       </span>
-                      <span className="text-gray-500">/{yearly ? 'year' : 'month'}</span>
+                      <span className="text-gray-500">/{yearly ? 'seat/month' : 'seat/month'}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {yearly ? '1,920 EGP/year • save 480 EGP' : '200 EGP/month • .edu required'}
+                      {yearly ? 'Billed annually ($228/seat) • save $60' : 'Cancel anytime'}
                     </p>
                   </motion.div>
                 </AnimatePresence>
               </div>
 
               <ul className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-8">
-                {perks.map((perk) => (
-                  <li key={perk} className="flex items-center gap-3 text-sm">
-                    <div className="w-5 h-5 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
-                      <Check className="text-purple-400" size={12} />
-                    </div>
-                    <span className="text-gray-300">{perk}</span>
-                  </li>
-                ))}
+                <li className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center shrink-0">
+                    <Check className="text-cyan-400" size={12} />
+                  </div>
+                  <span className="text-gray-300">Everything in Pro</span>
+                </li>
+                <li className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center shrink-0">
+                    <Check className="text-cyan-400" size={12} />
+                  </div>
+                  <span className="text-gray-300">Shared Repository Context</span>
+                </li>
+                <li className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center shrink-0">
+                    <Check className="text-cyan-400" size={12} />
+                  </div>
+                  <span className="text-gray-300">Centralized Billing & Seats</span>
+                </li>
+                <li className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center shrink-0">
+                    <Check className="text-cyan-400" size={12} />
+                  </div>
+                  <span className="text-gray-300">Zero Data Retention Privacy</span>
+                </li>
               </ul>
 
               <MagneticButton className="w-full">
-                <Link to="/login" className="w-full text-center block py-3.5 text-base rounded-xl border border-purple-500/20 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 font-semibold transition-colors">
-                  Start Free Trial
+                <Link to="/login" className="w-full text-center block py-3.5 text-base rounded-xl border border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-semibold transition-colors">
+                  Setup Team
                 </Link>
               </MagneticButton>
-
-              <div className="mt-4 pt-4 border-t border-white/[0.04]">
-                <p className="text-[10px] text-gray-600 text-center mb-2">Accepted payments</p>
-                <div className="flex items-center justify-center gap-2 flex-wrap">
-                  {['InstaPay (Egypt)', 'Manual Transfer'].map(m => (
-                    <span key={m} className="text-[10px] text-gray-500 bg-white/[0.03] px-2 py-1 rounded-md border border-white/[0.04]">
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </div>
             </div>
           </motion.div>
         </div>
@@ -424,17 +432,17 @@ export default function LandingPage() {
 
         <FadeIn delay={0.2}>
           <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05] mb-5 sm:mb-6 text-balance">
-            Zero downtime.{' '}
+            Your entire dev environment{' '}
             <br className="hidden sm:block" />
-            <span className="gradient-text">Maximum velocity.</span>
+            <span className="gradient-text">in your pocket.</span>
             <br />
-            <span className="text-white/80 text-2xl sm:text-4xl md:text-5xl">Your team's AI co-developer.</span>
+            <span className="text-white/80 text-2xl sm:text-4xl md:text-5xl">Zero downtime. Infinite velocity.</span>
           </h1>
         </FadeIn>
 
         <FadeIn delay={0.35}>
           <p className="text-sm sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed text-balance px-2">
-            Ship faster at your desk, and triage critical production issues from your phone—even during dinner. Reduce your team's MTTR to minutes. Synapse connects securely to your local environment.
+            Ship faster at your desk, and triage critical production issues from your phone—even during dinner. Connect securely to your local VS Code environment, run CLI commands, and chat with your codebase. The dream tool for elite developers and agile teams.
           </p>
         </FadeIn>
 
