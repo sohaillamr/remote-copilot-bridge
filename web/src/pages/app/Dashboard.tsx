@@ -9,6 +9,7 @@ import {
   Zap, Check, Activity, Keyboard, BarChart3, Sparkles,
 } from 'lucide-react'
 import { FadeIn, StaggerContainer, StaggerItem } from '../../components/Animations'
+import OnboardingWizard from '../../components/OnboardingWizard'
 
 function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
@@ -82,6 +83,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 max-w-6xl">
+      <OnboardingWizard />
       <FadeIn>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
           <div>
