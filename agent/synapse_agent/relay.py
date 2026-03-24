@@ -302,7 +302,7 @@ class SynapseRelay:
         tool = data.get("tool", self.config.get("default_tool", "copilot"))
         prompt = data.get("text", "")
         conversation_id = data.get("conversation_id", "")
-        timeout = data.get("timeout", self.config.get("default_timeout", 300))
+        timeout = data.get("timeout", self.config.get("default_timeout", 3600))
 
         model = data.get("model")
 
@@ -452,7 +452,7 @@ class SynapseRelay:
         """Handle shell command execution."""
         data = payload.get("payload", {})
         command = data.get("command", "")
-        timeout = data.get("timeout", 60)
+        timeout = data.get("timeout", 3600)
         conversation_id = data.get("conversation_id", "")
 
         if not self.config.get("shell_enabled", False):

@@ -40,7 +40,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "agent_name": "",
     "work_dir": os.getcwd(),
     "default_tool": "copilot",
-    "default_timeout": 300,
+    "default_timeout": 3600,
     "blocked_commands_enabled": True,
     "shell_enabled": False,
 }

@@ -426,7 +426,7 @@ class ToolBridge:
         tool_name: str,
         prompt: str,
         work_dir: str | None = None,
-        timeout: int = 300,
+        timeout: int = 3600,
         on_line: Callable[[str], Awaitable[None]] | None = None,
         model: str | None = None,
     ) -> ToolResult:
@@ -497,7 +497,7 @@ class ToolBridge:
         self,
         command: str,
         work_dir: str | None = None,
-        timeout: int = 60,
+        timeout: int = 3600,
         on_line: Callable[[str], Awaitable[None]] | None = None,
     ) -> ToolResult:
         """Run a restricted shell command with blocklist and allowlist checks."""
