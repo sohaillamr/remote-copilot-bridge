@@ -5,6 +5,7 @@ import TeamSettings from './TeamSettings'
 import { supabase } from '../../lib/supabase'
 import { User, Users, CreditCard, Terminal, LogOut, Check, Loader2, Copy, X, QrCode, Smartphone, Download, Trash2, ShieldAlert } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
+import { Github, Lock } from 'lucide-react'
 
 /** Generate a 12-char alphanumeric pairing code (no ambiguous chars). */
 function generatePairCode(): string {
@@ -21,6 +22,18 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  const [githubToken, setGithubToken] = useState(localStorage.getItem('github_pat') || '')
+  
+  const saveGithubToken = () => {
+    if (!githubToken) {
+      localStorage.removeItem('github_pat')
+    } else {
+      localStorage.setItem('github_pat', githubToken)
+    }
+    alert('GitHub Token Saved!')
+  }
+
   // Plan & Payment state
   // Plan & Payment state
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -208,6 +221,32 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8 space-y-6">
+
+      <FadeIn delay={0.1}>
+        <div className="glass-card rounded-xl p-5 sm:p-6 border-l-[3px] border-[#3fb950]">
+          <div className="flex items-center gap-2 mb-2">
+            <Github size={17} className="text-[#3fb950]" />
+            <h2 className="font-semibold text-sm">GitHub Integration</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-4">Add your Personal Access Token to browse repositories and allow your agents to manage your git workflows remotely.</p>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-gray-600 block mb-1.5">Personal Access Token</label>
+              <input 
+                type="password" 
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" 
+                className="input w-full font-mono text-sm" 
+              />
+            </div>
+            <button onClick={saveGithubToken} className="btn-primary text-sm px-5 py-2 flex items-center gap-2 bg-[#3fb950] hover:bg-[#2ea043]">
+              <Lock size={14} /> Save GitHub Token
+            </button>
+          </div>
+        </div>
+      </FadeIn>
+
       <FadeIn>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
       </FadeIn>

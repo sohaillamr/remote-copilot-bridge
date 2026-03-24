@@ -638,10 +638,8 @@ class SynapseRelay:
             
             try:
                 await self.connect()
-                console.print("
-[bold green]Synapse Agent is connected and listening[/bold green]")
-                console.print("[dim]Press Ctrl+C to stop[/dim]
-")
+                console.print("\n[bold green]Synapse Agent is connected and listening[/bold green]")
+                console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
                 self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
@@ -664,8 +662,7 @@ class SynapseRelay:
 
     async def _graceful_shutdown(self) -> None:
         """Handle OS signals for graceful shutdown."""
-        console.print("
-[yellow]Received shutdown signal...[/yellow]")
+        console.print("\n[yellow]Received shutdown signal...[/yellow]")
         self._running = False
         if getattr(self, '_heartbeat_task', None):
             self._heartbeat_task.cancel()

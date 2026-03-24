@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { AgentRelayProvider } from '../contexts/AgentRelayContext'
 import ToastContainer from '../components/ToastContainer'
-import { MessageSquare, FolderOpen, Settings, LayoutDashboard, LogOut, Shield, Zap, Menu, X, Users } from 'lucide-react'
+import { MessageSquare, FolderOpen, Settings, LayoutDashboard, LogOut, Shield, Zap, Menu, X, Users, Github } from 'lucide-react'
 
 const navItems = [
   { to: '/app', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/app/chat', icon: MessageSquare, label: 'Chat', end: false },
   { to: '/app/files', icon: FolderOpen, label: 'Files', end: false },
+  { to: '/app/github', icon: Github, label: 'GitHub', end: false },
   { to: '/app/settings', icon: Settings, label: 'Settings', end: false },
 ]
 

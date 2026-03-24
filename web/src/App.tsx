@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react'
 const Dashboard = lazy(() => import('./pages/app/Dashboard'))
 const Chat = lazy(() => import('./pages/app/Chat'))
 const FileBrowser = lazy(() => import('./pages/app/FileBrowser'))
+const GithubRepos = lazy(() => import('./pages/app/GithubRepos'))
 const Settings = lazy(() => import('./pages/app/Settings'))
 const TeamDashboard = lazy(() => import('./pages/app/TeamDashboard'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
@@ -102,6 +103,7 @@ function AnimatedRoutes() {
               <Route path="chat" element={<Chat />} />
               <Route path="chat/:id" element={<Chat />} />
               <Route path="files" element={<FileBrowser />} />
+              <Route path="github" element={<GithubRepos />} />
               <Route path="settings" element={<Settings />} />
               <Route path="team" element={<TeamDashboard />} />
             </Route>
