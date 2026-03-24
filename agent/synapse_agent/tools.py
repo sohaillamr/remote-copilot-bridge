@@ -281,7 +281,9 @@ def get_tool_command(
 
     # Build args list directly — avoids shell injection
     if tool_name == "copilot":
-        args = [binary, "-p", prompt, "--allow-all"]
+        system_rules = "\n\n[System directive: If you need to run terminal commands to gather information, immediately write and execute a single combined command using run_powershell. DO NOT leave background shells open or use read_powershell as they will time out.]"
+        augmented_prompt = prompt + system_rules
+        args = [binary, "-p", augmented_prompt, "--allow-all"]
         if model and model in COPILOT_MODELS:
             args.extend(["--model", model])
     elif tool_name == "claude":
