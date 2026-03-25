@@ -4,30 +4,52 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
-const LoginPage = lazy(() => import('./pages/Login'))
-const LandingPage = lazy(() => import('./pages/Landing'))
-const PairPage = lazy(() => import('./pages/Pair'))
-const CliLogin = lazy(() => import('./pages/CliLogin'))
+
+// Helper to auto-reload if a lazy-loaded chunk fails (e.g., after a new deployment)
+const lazyWithRetry = (componentImport: () => Promise<any>) =>
+  lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+        window.location.reload();
+        // Return a promise that never resolves so we don't trigger React's error boundary before reload
+        return new Promise(() => {});
+      }
+      throw error;
+    }
+  });
+
+const LoginPage = lazyWithRetry(() => import('./pages/Login'))
+const LandingPage = lazyWithRetry(() => import('./pages/Landing'))
+const PairPage = lazyWithRetry(() => import('./pages/Pair'))
+const CliLogin = lazyWithRetry(() => import('./pages/CliLogin'))
 import AppLayout from './layouts/AppLayout'
 import AdminLayout from './layouts/AdminLayout'
 import { Loader2 } from 'lucide-react'
 
 // Lazy-load page components for code splitting
-const Dashboard = lazy(() => import('./pages/app/Dashboard'))
-const Chat = lazy(() => import('./pages/app/Chat'))
-const FileBrowser = lazy(() => import('./pages/app/FileBrowser'))
-const GithubRepos = lazy(() => import('./pages/app/GithubRepos'))
-const Settings = lazy(() => import('./pages/app/Settings'))
-const TeamDashboard = lazy(() => import('./pages/app/TeamDashboard'))
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
-const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
-const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'))
-const AdminUsage = lazy(() => import('./pages/admin/AdminUsage'))
-const AdminSystem = lazy(() => import('./pages/admin/AdminSystem'))
-const Guide = lazy(() => import('./pages/Guide'))
-const Terms = lazy(() => import('./pages/Terms'))
-const Privacy = lazy(() => import('./pages/Privacy'))
-const NotFound = lazy(() => import('./pages/NotFound'))
+const Dashboard = lazyWithRetry(() => import('./pages/app/Dashboard'))
+const Chat = lazyWithRetry(() => import('./pages/app/Chat'))
+const FileBrowser = lazyWithRetry(() => import('./pages/app/FileBrowser'))
+const GithubRepos = lazyWithRetry(() => import('./pages/app/GithubRepos'))
+const Settings = lazyWithRetry(() => import('./pages/app/Settings'))
+const TeamDashboard = lazyWithRetry(() => import('./pages/app/TeamDashboard'))
+const AdminDashboard = lazyWithRetry(() => import('./pages/admin/AdminDashboard'))
+const AdminUsers = lazyWithRetry(() => import('./pages/admin/AdminUsers'))
+const AdminRevenue = lazyWithRetry(() => import('./pages/admin/AdminRevenue'))
+const AdminUsage = lazyWithRetry(() => import('./pages/admin/AdminUsage'))
+const AdminSystem = lazyWithRetry(() => import('./pages/admin/AdminSystem'))
+const Guide = lazyWithRetry(() => import('./pages/Guide'))
+const Terms = lazyWithRetry(() => import('./pages/Terms'))
+const Privacy = lazyWithRetry(() => import('./pages/Privacy'))
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
 
 const Loader = () => (
   <div className="flex items-center justify-center h-64">
