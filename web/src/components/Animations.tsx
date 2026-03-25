@@ -165,7 +165,7 @@ export function GlowCard({
     >
       {/* Glow effect on hover */}
       <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-synapse-500/20 via-purple-500/20 to-synapse-500/20 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500" />
-      <div className="relative glass-card rounded-2xl p-6">
+      <div className="relative glass-card rounded-2xl p-6 h-full flex flex-col">
         {children}
       </div>
     </motion.div>
