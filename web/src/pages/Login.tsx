@@ -9,7 +9,7 @@ import GridBackground from '../components/GridBackground'
 import { FadeIn } from '../components/Animations'
 
 export default function LoginPage() {
-  const { user, signInWithEmail, isLoading: loading } = useAuth()
+  const { user, signInWithEmail, isLoading: loading, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairError, setPairError] = useState('')
 
+  if (user && isAdmin) return <Navigate to="/admin" replace />
   if (user) return <Navigate to="/app" replace />
 
   
