@@ -1,6 +1,7 @@
-﻿import { lazy, Suspense } from 'react'
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import CustomCursor from './components/CustomCursor'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -137,6 +138,7 @@ export default function App() {
       <ErrorBoundary>
         <AnimatedRoutes />
       </ErrorBoundary>
+      <Analytics />
     </AuthProvider>
   )
 }
