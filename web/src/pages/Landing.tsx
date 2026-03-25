@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from 'react'
+﻿import { useState, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -212,12 +212,49 @@ function CommandCenterPreview() {
 
 export default function LandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
+  const [isScrolled, setIsScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white selection:bg-synapse-500/30 overflow-x-hidden font-sans">
       <GridBackground />
 
-      <main className="relative pt-20 pb-16 sm:pb-24">
+      {/* Navigation Bar */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-[#09090b]/80 backdrop-blur-md border-b border-white/10 py-3' : 'bg-transparent py-5'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-synapse-500 to-synapse-600 flex items-center justify-center shadow-lg shadow-synapse-500/20 group-hover:shadow-synapse-500/40 transition-all">
+              <Network size={16} className="text-white" />
+            </div>
+            <span className="font-bold text-lg tracking-tight">Synapse.</span>
+          </Link>
+          
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#teams" className="hover:text-white transition-colors">Teams</a>
+            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="text-sm font-medium text-gray-300 hover:text-white transition-colors hidden sm:block">
+              Sign In
+            </Link>
+            <Link to="/login" className="btn-primary px-5 py-2 text-sm">
+              Start Free
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <main className="relative pt-32 pb-16 sm:pb-24">
         
         {/* 1. Hero Section: Unified Command */}
         <section className="px-4 sm:px-6 mb-24 md:mb-32">
@@ -251,7 +288,7 @@ export default function LandingPage() {
         </section>
 
         {/* 2. The "Hybrid Context" Engine */}
-        <section className="px-4 sm:px-6 mb-32 max-w-7xl mx-auto">
+        <section id="features" className="px-4 sm:px-6 mb-32 max-w-7xl mx-auto scroll-mt-24">
           <div className="text-center mb-16">
             <span className="text-sm font-semibold text-emerald-400 uppercase tracking-widest">Secret Sauce</span>
             <h2 className="text-3xl md:text-5xl font-bold mt-2 mb-4">Total Context. Zero Latency.</h2>
@@ -274,7 +311,7 @@ export default function LandingPage() {
         </section>
 
         {/* 3. NEW: Synapse for Teams (Beta) */}
-        <section id="teams" className="relative px-4 sm:px-6 mb-32 py-20 bg-gradient-to-b from-indigo-950/20 to-transparent border-y border-indigo-500/10">
+        <section id="teams" className="relative px-4 sm:px-6 mb-32 py-20 bg-gradient-to-b from-indigo-950/20 to-transparent border-y border-indigo-500/10 scroll-mt-24">
           <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
           <div className="relative z-10 max-w-7xl mx-auto">
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -413,7 +450,7 @@ export default function LandingPage() {
         </section>
 
         {/* 7. Pricing Matrix */}
-        <section className="px-4 sm:px-6 mb-32 max-w-7xl mx-auto">
+        <section id="pricing" className="px-4 sm:px-6 mb-32 max-w-7xl mx-auto scroll-mt-24">
            <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-4">Pricing</h2>
               <p className="text-gray-400">Simple plans for solo devs and scaling teams.</p>
@@ -468,7 +505,7 @@ export default function LandingPage() {
         </section>
 
         {/* 9. FAQ */}
-        <section className="px-4 sm:px-6 mb-20 max-w-3xl mx-auto">
+        <section id="faq" className="px-4 sm:px-6 mb-20 max-w-3xl mx-auto scroll-mt-24">
            <h2 className="text-2xl font-bold mb-8 text-center">Frequently Asked Questions</h2>
            <div className="space-y-4">
               {faqs.map((f, i) => (
