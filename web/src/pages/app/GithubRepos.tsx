@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Github, Folder, ExternalLink, RefreshCw, X, ArrowRight } from 'lucide-react'
+import { Github, Folder, ExternalLink, RefreshCw, X } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
 export default function GithubRepos() {

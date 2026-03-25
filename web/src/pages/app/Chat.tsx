@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { useRelay } from '../../contexts/AgentRelayContext'
@@ -34,7 +34,7 @@ export default function Chat() {
   const { id: conversationId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()                      
-  const { user, hasActiveSubscription } = useAuth()
+  const { user } = useAuth()
   const {
       isConnected,
       agentReachable,
@@ -44,7 +44,6 @@ export default function Chat() {
       sendPrompt,
       sendCancel,
       sendGit,
-      sendSetWorkdir,
       detectedTools,
       modelChoices,
       clearOutput,
@@ -61,7 +60,6 @@ export default function Chat() {
   // Handle auto-repo initialization from URL
   useEffect(() => {
     const initRepo = searchParams.get('init_repo')
-    const repoName = searchParams.get('repo_name')
     if (initRepo && isConnected && !isWaiting) {
       // Small delay to ensure connection is ready
       setTimeout(() => {
@@ -680,7 +678,56 @@ export default function Chat() {
           )}
         </AnimatePresence>
 
-          <div ref={bottomRef} />
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 sm:space-y-6">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 space-y-4 select-none opacity-50">
+              <div className="w-16 h-16 rounded-2xl bg-white/[0.03] flex items-center justify-center">
+                <Terminal size={32} />
+              </div>
+              <div className="max-w-[200px]">
+                <p className="text-sm font-medium text-gray-400">Ready to assist</p>
+                <p className="text-xs text-gray-600 mt-1">Select a tool above or start typing</p>
+              </div>
+            </div>
+          ) : (
+            messages.map(msg => (
+              <div
+                key={msg.id}
+                className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+              >
+                <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                  msg.role === 'user' ? 'bg-white/[0.08]' : 'bg-synapse-500/20 text-synapse-400'
+                }`}>
+                  {msg.role === 'user' ? <div className="w-2 h-2 bg-gray-400 rounded-full" /> : <Zap size={14} />}
+                </div>
+                <div className={`flex flex-col gap-1 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-500 px-1">
+                    <span>{msg.role === 'user' ? 'You' : (msg.tool || 'Assistant')}</span>
+                    <span>•</span>
+                    <span>{msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    {msg.role === 'assistant' && (
+                      <button
+                        onClick={() => handleCopyMessage(msg.content, msg.id)}
+                        className="hover:text-gray-300 transition-colors"
+                        title="Copy"
+                      >
+                        {copiedMsgId === msg.id ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                      </button>
+                    )}
+                  </div>
+                  <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-white/[0.06] text-gray-200 rounded-tr-sm'
+                      : 'bg-black/20 border border-white/[0.04] text-gray-300 rounded-tl-sm w-full'
+                  }`}>
+                    <MarkdownMessage content={msg.content} />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={bottomRef} className="h-4" />
         </div>
 
         {/* Voice error toast */}

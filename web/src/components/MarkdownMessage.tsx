@@ -25,23 +25,7 @@ function preprocessContent(raw: string): string {
   return text.trim()
 }
 
-/* ── Content detection ────────────────────────────────────── */
 
-function looksLikeMarkdown(text: string): boolean {
-  const markers = [
-    /^#{1,6}\s/m,
-    /\*\*[^*]+\*\*/,
-    /```[\s\S]*?```/,
-    /^\s*[-*+]\s/m,
-    /^\s*\d+\.\s/m,
-    /\[.+?\]\(.+?\)/,
-    /^\s*>\s/m,
-    /\|.+\|.+\|/,
-  ]
-  let count = 0
-  for (const re of markers) if (re.test(text)) count++
-  return count >= 2
-}
 
 /* ── Syntax-highlighted code block ────────────────────────── */
 
