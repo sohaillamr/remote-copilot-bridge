@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 const LoginPage = lazy(() => import('./pages/Login'))
 const LandingPage = lazy(() => import('./pages/Landing'))
 const PairPage = lazy(() => import('./pages/Pair'))
+const CliLogin = lazy(() => import('./pages/CliLogin'))
 import AppLayout from './layouts/AppLayout'
 import AdminLayout from './layouts/AdminLayout'
 import { Loader2 } from 'lucide-react'
@@ -96,6 +97,7 @@ function AnimatedRoutes() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/pair" element={<PairPage />} />
+            <Route path="/cli-login" element={<CliLogin />} />
 
             {/* User App */}
             <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

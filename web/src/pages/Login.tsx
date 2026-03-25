@@ -20,10 +20,15 @@ export default function LoginPage() {
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairError, setPairError] = useState('')
 
-  if (user && isAdmin) return <Navigate to="/admin" replace />
-  if (user) return <Navigate to="/app" replace />
-
-  
+  if (user) {
+    const redirectUrl = sessionStorage.getItem('synapse_redirect_after_login')
+    if (redirectUrl) {
+      sessionStorage.removeItem('synapse_redirect_after_login')
+      return <Navigate to={redirectUrl} replace />
+    }
+    if (isAdmin) return <Navigate to="/admin" replace />
+    return <Navigate to="/app" replace />
+  }
 
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault()

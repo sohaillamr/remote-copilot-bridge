@@ -62,64 +62,59 @@ def login():
     console.print()
     console.print(Panel.fit(
         "[bold cyan]Synapse Login[/bold cyan]\n"
-        "[dim]We'll send a magic link to your email.[/dim]",
+        "[dim]Opening your browser to securely connect your account...[/dim]",
         border_style="cyan",
     ))
     console.print()
 
-    email = click.prompt("  Email")
-
-    # Send magic link via Supabase Auth REST API
     from synapse_agent.auth_server import CALLBACK_PORT, wait_for_auth_callback
+    import webbrowser
 
-    redirect_url = f"http://localhost:{CALLBACK_PORT}/callback"
+    login_url = f"https://synapse-green.vercel.app/cli-login?port={CALLBACK_PORT}"
 
-    resp = requests.post(
-        f"{SYNAPSE_SUPABASE_URL}/auth/v1/otp",
-        headers={
-            "apikey": SYNAPSE_SUPABASE_ANON_KEY,
-            "Content-Type": "application/json",
-        },
-        json={
-            "email": email.strip(),
-            "options": {
-                "emailRedirectTo": redirect_url,
-            },
-        },
-        timeout=15,
-    )
+    console.print(f"  If your browser does not open automatically, visit this link:")
+    console.print(f"  [blue underline]{login_url}[/blue underline]\n")
 
-    if resp.status_code != 200:
-        console.print(f"[red]  Error sending magic link: {resp.text}[/red]")
-        sys.exit(1)
+    try:
+        webbrowser.open_new(login_url)
+    except Exception:
+        pass
 
-    console.print()
-    console.print("  [bold green]Mail sent![/bold green] Check your inbox and click the link.")
-    console.print("  [dim](check spam if you don't see it)[/dim]")
-    console.print()
-
-    # Wait for the user to click the link
+    # Wait for the browser to redirect back
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
         transient=True,
     ) as progress:
-        progress.add_task(description="Waiting for you to click the link...", total=None)
+        progress.add_task(description="Waiting for browser authentication...", total=None)
         tokens = wait_for_auth_callback(timeout=300)
 
     if not tokens or not tokens.get("access_token"):
         console.print("[red]  Timed out waiting for login. Please try again.[/red]")
         sys.exit(1)
 
+    access_token = tokens["access_token"]
+    
+    # decode JWT to get email
+    try:
+        import base64
+        import json
+        payload = access_token.split(".")[1]
+        payload += "=" * ((4 - len(payload) % 4) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload).decode())
+        user_email = claims.get("email", "unknown")
+    except Exception:
+        user_email = "unknown"
+
     # Save tokens
     config = load_config()
-    config["access_token"] = tokens["access_token"]
+    config["access_token"] = access_token
     config["refresh_token"] = tokens.get("refresh_token", "")
-    config["user_email"] = email.strip()
+    config["user_email"] = user_email
     save_config(config)
 
-    console.print(f"  [bold green]Logged in as [white]{email.strip()}[/white]![/bold green]")
+    console.print(f"  [bold green]Logged in as [white]{user_email}[/white]![/bold green]")
     console.print("  [dim]Run [bold]synapse start[/bold] to connect your tools.[/dim]")
     console.print()
 
