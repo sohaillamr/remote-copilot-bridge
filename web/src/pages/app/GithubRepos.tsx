@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Github, Folder, ExternalLink, RefreshCw, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Github, Folder, ExternalLink, RefreshCw, X, ArrowRight } from 'lucide-react'
 import { FadeIn } from '../../components/Animations'
 
 export default function GithubRepos() {
+  const navigate = useNavigate()
   const [repos, setRepos] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -79,6 +81,12 @@ export default function GithubRepos() {
                 <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-synapse-500"></div> {repo.language || 'Mixed'}</span>
                 <span>{new Date(repo.updated_at).toLocaleDateString()}</span>
               </div>
+              <button
+                onClick={() => navigate(`/app/chat?init_repo=${encodeURIComponent(repo.clone_url)}&repo_name=${encodeURIComponent(repo.name)}`)}
+                className="mt-4 w-full py-2 bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/[0.04] group-hover:border-synapse-500/20"
+              >
+                <Folder size={14} className="text-synapse-400" /> Start Working
+              </button>
             </div>
           </FadeIn>
         ))}

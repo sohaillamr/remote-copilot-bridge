@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { useRelay } from '../../contexts/AgentRelayContext'
@@ -33,21 +33,22 @@ interface ConversationMeta {
 export default function Chat() {
   const { id: conversationId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()                      
   const { user, hasActiveSubscription } = useAuth()
   const {
-    isConnected,
-    agentReachable,
-    outputLines,
-    lastResult,
-    isWaiting,
-    sendPrompt,
-    sendCancel,
-    sendGit,
-    detectedTools,
-    modelChoices,
-    clearOutput,
-  } = useRelay()
-
+      isConnected,
+      agentReachable,
+      outputLines,
+      lastResult,
+      isWaiting,
+      sendPrompt,
+      sendCancel,
+      sendGit,
+      sendSetWorkdir,
+      detectedTools,
+      modelChoices,
+      clearOutput,
+    } = useRelay()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [selectedTool, setSelectedTool] = useState('copilot')
@@ -56,6 +57,24 @@ export default function Chat() {
   const [commitMsg, setCommitMsg] = useState('')
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string>('')
+
+  // Handle auto-repo initialization from URL
+  useEffect(() => {
+    const initRepo = searchParams.get('init_repo')
+    const repoName = searchParams.get('repo_name')
+    if (initRepo && isConnected && !isWaiting) {
+      // Small delay to ensure connection is ready
+      setTimeout(() => {
+        // Clone/Open repo workflow
+        const prompt = `I want to work on this repository: ${initRepo}. Please clone it if it doesn't exist, or open it if it does. Then list the files.`
+        setInput(prompt)
+        // Auto-show git panel
+        setShowGitPanel(true)
+        // Clear params to avoid loop
+        navigate('/app/chat', { replace: true })
+      }, 500)
+    }
+  }, [isConnected, isWaiting, searchParams, navigate])
 
   // Conversation sidebar
   const [conversations, setConversations] = useState<ConversationMeta[]>([])
@@ -613,187 +632,53 @@ export default function Chat() {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="overflow-hidden border-b border-white/[0.06]"
+              className="overflow-hidden border-b border-white/[0.06] bg-black/20"
             >
-              <div className="px-3 sm:px-5 py-3 space-y-2.5">
-                <div className="flex flex-wrap gap-1.5">
+              <div className="px-3 sm:px-5 py-3 space-y-3">
+                <div className="flex flex-wrap gap-2">
                   {[
                     { label: 'Status', cmd: 'status' },
-                    { label: 'Log', cmd: 'log --oneline -10' },
                     { label: 'Diff', cmd: 'diff --stat' },
+                    { label: 'Log', cmd: 'log --oneline -10' },
                     { label: 'Pull', cmd: 'pull' },
                     { label: 'Push', cmd: 'push' },
-                    { label: 'Branch', cmd: 'branch -a' },
-                    { label: 'Stash', cmd: 'stash' },
-                    { label: 'Stash Pop', cmd: 'stash pop' },
-                  ].map(({ label, cmd }) => (
-                    <motion.button
-                      key={cmd}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => runGit(cmd)}
-                      disabled={isWaiting}
-                      className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/[0.06] transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-mono"
+                    { label: 'Fetch', cmd: 'fetch --all' },
+                    { label: 'Branch', cmd: 'branch -vv' },
+                    { label: 'Checkout', cmd: 'checkout' },
+                    { label: 'Stash', cmd: 'stash' }
+                  ].map((action) => (
+                    <button
+                      key={action.label}
+                      onClick={() => runGit(action.cmd)}
+                      className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-xs transition-colors border border-white/5 hover:border-white/10 flex items-center gap-1.5"
                     >
-                      {label}
-                    </motion.button>
+                      <span className="w-1.5 h-1.5 rounded-full bg-synapse-500/50" />
+                      {action.label}
+                    </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex gap-2 pt-1 border-t border-white/[0.04]">
                   <input
                     type="text"
                     value={commitMsg}
                     onChange={(e) => setCommitMsg(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCommit() }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCommit()}
                     placeholder="Commit message..."
-                    className="input flex-1 text-xs py-1.5"
-                    disabled={isWaiting}
+                    className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-synapse-500/30 transition-colors placeholder:text-gray-600"
                   />
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
+                  <button
                     onClick={handleCommit}
-                    disabled={!commitMsg.trim() || isWaiting}
-                    className="text-[11px] px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                    disabled={!commitMsg.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-synapse-500/10 text-synapse-400 text-xs hover:bg-synapse-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium border border-synapse-500/20"
                   >
-                    Commit All
-                  </motion.button>
+                    Commit
+                  </button>
                 </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3" role="log" aria-label="Chat messages" aria-live="polite">
-          {/* Subscription expired banner */}
-          {!hasActiveSubscription && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm"
-            >
-              <Zap size={16} className="shrink-0" />
-              <span className="flex-1">Your trial has expired. Upgrade to keep sending prompts.</span>
-              <Link to="/app/settings" className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 transition-colors">Upgrade</Link>
-            </motion.div>
-          )}
-
-          {messages.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-center py-10 sm:py-24"
-            >
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-synapse-500/10 flex items-center justify-center mx-auto mb-4 sm:mb-5">
-                <Terminal className="text-synapse-400" size={22} />
-              </div>
-              <p className="text-sm sm:text-base text-gray-400">Send a prompt to <span className="text-white font-medium">{selectedTool}</span></p>
-              <p className="text-xs text-gray-600 mt-2">Make sure your agent is running on your machine</p>
-              {detectedTools.length > 0 && (
-                <p className="text-xs text-gray-600 mt-1">
-                  Detected: {detectedTools.map(t => t.name).join(', ')}
-                </p>
-              )}
-              {voiceSupported && (
-                <p className="text-xs text-gray-600 mt-1 flex items-center justify-center gap-1">
-                  <Mic size={11} /> Voice input available — tap the mic to speak
-                </p>
-              )}
-            </motion.div>
-          )}
-
-          <AnimatePresence>
-            {messages.map(msg => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`relative group max-w-[88vw] sm:max-w-2xl rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
-                  msg.role === 'user'
-                    ? 'bg-synapse-600/20 border border-synapse-500/10'
-                    : 'glass-card'
-                }`}>
-                  {msg.tool && (
-                    <p className="text-[10px] text-gray-600 mb-1 font-mono">{msg.tool}</p>
-                  )}
-
-                  {/* Render markdown for assistant, plain for user */}
-                  {msg.role === 'assistant' ? (
-                    <MarkdownMessage content={msg.content} />
-                  ) : (
-                    <pre className="whitespace-pre-wrap font-mono text-xs sm:text-sm break-words text-gray-300 leading-relaxed">
-                      {msg.content}
-                    </pre>
-                  )}
-
-                  {msg.id === 'streaming' && (
-                    <span className="inline-block w-1.5 h-4 bg-synapse-400 animate-pulse rounded-sm ml-0.5" />
-                  )}
-
-                  {/* Copy button on assistant messages */}
-                  {msg.role === 'assistant' && msg.id !== 'streaming' && (
-                    <button
-                      onClick={() => handleCopyMessage(msg.content, msg.id)}
-                      className="absolute top-2 right-2 p-1 rounded-md bg-white/[0.04] text-gray-600 hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-all"
-                      title="Copy response"
-                    >
-                      {copiedMsgId === msg.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Thinking animation */}
-          <AnimatePresence>
-            {isWaiting && !streamingText && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="flex justify-start"
-              >
-                <div className="glass-card rounded-2xl px-5 py-4 flex items-center gap-3">
-                  <div className="relative w-8 h-8 flex items-center justify-center">
-                    <motion.div
-                      className="absolute inset-0 rounded-xl bg-synapse-500/20"
-                      animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
-                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                    />
-                    <motion.div
-                      className="absolute inset-0 rounded-xl bg-synapse-400/10"
-                      animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
-                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-                    />
-                    <motion.div
-                      className="relative z-10"
-                      animate={{ scale: [1, 1.15, 1] }}
-                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      <Zap size={18} className="text-synapse-400 fill-synapse-400/30" />
-                    </motion.div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-500">Thinking</span>
-                    {[0, 1, 2].map(i => (
-                      <motion.span
-                        key={i}
-                        className="w-1 h-1 rounded-full bg-synapse-400"
-                        animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
-                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <div ref={bottomRef} />
         </div>

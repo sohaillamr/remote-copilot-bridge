@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRelay } from '../../contexts/AgentRelayContext'
 import {
   Folder, File, ArrowLeft, RefreshCw, Home, ChevronRight,
-  FileText, AlertCircle, FolderOpen, Zap, Check, Copy,
+  FileText, AlertCircle, FolderOpen, Zap, Check, Copy, Search,
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -109,6 +109,7 @@ export default function FileBrowser() {
   const [error, setError] = useState<string | null>(null)
   const [settingWorkdir, setSettingWorkdir] = useState(false)
   const [workdirSet, setWorkdirSet] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Request tracking
   const requestIdRef = useRef(0)
@@ -259,10 +260,17 @@ export default function FileBrowser() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  const sortedFiles = [...files].sort((a, b) => {
-    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1
-    return a.name.localeCompare(b.name)
-  })
+const sortedFiles = useMemo(() => {
+      let f = files
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase()
+        f = files.filter(file => file.name.toLowerCase().includes(q))
+      }
+      return [...f].sort((a, b) => {
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1
+        return a.name.localeCompare(b.name)
+      })
+    }, [files, searchQuery])
 
   if (!isConnected) {
     return (
@@ -361,6 +369,21 @@ export default function FileBrowser() {
         />
       ) : (
         <div className="glass-card rounded-xl overflow-hidden">
+          <div className="p-2 border-b border-white/[0.04]">
+            <div className="relative group">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none group-focus-within:text-synapse-400 transition-colors"
+              />
+              <input
+                type="text"
+                placeholder="Filter files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-black/20 hover:bg-black/30 focus:bg-black/40 border-none rounded-lg py-1.5 pl-9 pr-3 text-xs text-gray-300 placeholder:text-gray-600 focus:ring-1 focus:ring-synapse-500/30 transition-all font-mono"
+              />
+            </div>
+          </div>
           {currentPath !== '.' && (
             <button
               onClick={goUp}
