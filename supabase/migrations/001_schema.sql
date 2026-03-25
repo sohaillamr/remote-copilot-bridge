@@ -216,12 +216,13 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email, display_name, avatar_url, trial_ends_at)
+    INSERT INTO public.profiles (id, email, display_name, avatar_url, subscription_status, trial_ends_at)
     VALUES (
         NEW.id,
         COALESCE(NEW.email, ''),
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', ''),
         COALESCE(NEW.raw_user_meta_data->>'avatar_url', ''),
+        'trial',
         now() + interval '7 days'   -- 7-day free trial
     );
 
