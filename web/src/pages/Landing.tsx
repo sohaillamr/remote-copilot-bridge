@@ -231,7 +231,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-synapse-500 to-synapse-600 flex items-center justify-center shadow-lg shadow-synapse-500/20 group-hover:shadow-synapse-500/40 transition-all">
-              <Network size={16} className="text-white" />
+              <Zap size={16} className="text-white fill-white" />
             </div>
             <span className="font-bold text-lg tracking-tight">Synapse.</span>
           </Link>
