@@ -43,7 +43,8 @@ export default function Guide() {
                     <div className="terminal-dot bg-green-500/80" />
                   </div>
                   <div className="terminal-body space-y-1">
-                    <p><span className="text-emerald-400">$</span> <span className="text-gray-300">pip install synapse-agent</span></p>
+                    <p className="text-gray-500 mb-2 border-b border-white/5 pb-2 text-xs"># Note: Python 3.10+ is required. We recommend using a virtual environment.</p>
+                    <p><span className="text-emerald-400">$</span> <span className="text-gray-300">pip install synapse-bridge</span></p>
                   </div>
                 </div>
               </div>

@@ -41,6 +41,7 @@ const FileBrowser = lazyWithRetry(() => import('./pages/app/FileBrowser'))
 const GithubRepos = lazyWithRetry(() => import('./pages/app/GithubRepos'))
 const Settings = lazyWithRetry(() => import('./pages/app/Settings'))
 const TeamDashboard = lazyWithRetry(() => import('./pages/app/TeamDashboard'))
+const AdminLogin = lazyWithRetry(() => import('./pages/admin/AdminLogin'))
 const AdminDashboard = lazyWithRetry(() => import('./pages/admin/AdminDashboard'))
 const AdminUsers = lazyWithRetry(() => import('./pages/admin/AdminUsers'))
 const AdminRevenue = lazyWithRetry(() => import('./pages/admin/AdminRevenue'))
@@ -118,6 +119,7 @@ function AnimatedRoutes() {
             {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/pair" element={<PairPage />} />
             <Route path="/cli-login" element={<CliLogin />} />
 

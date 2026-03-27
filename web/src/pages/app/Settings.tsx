@@ -484,12 +484,13 @@ export default function Settings() {
                   <div className="terminal-dot bg-red-500/80" />
                   <div className="terminal-dot bg-yellow-500/80" />
                   <div className="terminal-dot bg-green-500/80" />
-                  <button onClick={() => handleCopy('pip install synapse-agent')} className="ml-auto text-gray-500 hover:text-gray-300 transition-colors p-1" title="Copy">
+                  <button onClick={() => handleCopy('pip install synapse-bridge')} className="ml-auto text-gray-500 hover:text-gray-300 transition-colors p-1" title="Copy">
                     {copied ? <Check size={12} /> : <Copy size={12} />}
                   </button>
                 </div>
-                <div className="terminal-body">
-                  <p><span className="text-emerald-400">$</span> <span className="text-gray-400">pip install synapse-agent</span></p>
+                <div className="terminal-body space-y-1">
+                  <p className="text-gray-500 mb-2 border-b border-white/5 pb-2 text-xs"># Requires Python 3.10+</p>
+                  <p><span className="text-emerald-400">$</span> <span className="text-gray-400">pip install synapse-bridge</span></p>
                 </div>
               </div>
             </div>

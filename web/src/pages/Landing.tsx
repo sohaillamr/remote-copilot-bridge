@@ -383,7 +383,8 @@ export default function LandingPage() {
         {/* 4. The "Pip" Installation */}
         <section className="px-4 sm:px-6 mb-32 max-w-7xl mx-auto text-center">
            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Up and running in 60 seconds.</h2>
-           <p className="text-gray-400 mb-8 max-w-lg mx-auto">No complex SSH keys. No port forwarding. Just a secure WebSocket tunnel that "just works".</p>
+           <p className="text-gray-400 max-w-lg mx-auto mb-2">No complex SSH keys. No port forwarding. Just a secure WebSocket tunnel that "just works".</p>
+           <p className="text-xs text-synapse-400 font-mono mb-8 opacity-80">(Requires Python 3.10+)</p>
            <PipCopyBlock />
         </section>
 
