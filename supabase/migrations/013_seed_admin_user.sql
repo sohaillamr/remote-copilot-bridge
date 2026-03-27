@@ -3,7 +3,6 @@
 -- ============================================================
 -- Creates the admin user if they don't exist, and forces
 -- the password to be 'synapseadmin'. 
--- This fixes 'Invalid login credentials' for users created via Magic Link.
 -- ============================================================
 
 DO $ody$
@@ -25,9 +24,9 @@ BEGIN
             '{}',
             now(), now()
         );
-        INSERT INTO auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+        INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
         VALUES (
-            gen_random_uuid(), v_user_id, format('{"sub":"%s","email":"%s"}', v_user_id::text, 'admin@synapse.com')::jsonb, 'email', now(), now(), now()
+            gen_random_uuid(), v_user_id::text, v_user_id, format('{"sub":"%s","email":"%s"}', v_user_id::text, 'admin@synapse.com')::jsonb, 'email', now(), now(), now()
         );
     ELSE
         -- Update password for existing user in case it was created via Magic Link / OTP
