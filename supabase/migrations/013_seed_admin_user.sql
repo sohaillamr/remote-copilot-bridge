@@ -5,7 +5,7 @@
 -- the password to be 'synapseadmin'. 
 -- ============================================================
 
-DO $ody$
+DO $$
 DECLARE
     v_user_id uuid;
 BEGIN
@@ -45,4 +45,5 @@ BEGIN
     VALUES (v_user_id, 'admin@synapse.com', 'active')
     ON CONFLICT (id) DO NOTHING;
 
-END $ody$$;
+END $$;
+
